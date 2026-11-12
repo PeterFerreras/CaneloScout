@@ -2,6 +2,8 @@
 
 Maqueta funcional para presentar el flujo digital del Canelo Scout Invitational 2026.
 
+Para continuar desde otro equipo, consulta [el contexto y las limitaciones](docs/CONTEXTO.md). Cuenta de GitHub prevista: `peterferreras` (publicación pendiente).
+
 ## Alcance
 
 - Registro público sin creación de cuenta.
@@ -26,6 +28,8 @@ Después, abrir `http://localhost:8080`.
 ## Persistencia
 
 La maqueta usa `localStorage` para simular solicitudes y cambios dentro del navegador. No incluye base de datos ni almacenamiento real de archivos.
+
+El comprobante ampliado es de ejemplo, la creación de equipos adicionales y la publicación son simuladas y el panel no está protegido. No introducir datos reales.
 
 Para producción se recomienda separar:
 
