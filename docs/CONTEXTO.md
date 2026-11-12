@@ -27,9 +27,9 @@ El panel administrativo está disponible públicamente y no debe usarse con dato
 - Código: `dist/index.html`.
 - Instrucciones: `README.md`.
 - Arquitectura propuesta: `docs/architecture.md`.
-- Catálogo: entregado por separado en PDF.
+- Catálogo visual: `docs/Catalogo-visual-Canelo-Scout-MVP.pdf`.
 - Demo: https://rosterflow-invitational-2026.builtchalet.chatgpt.site/
 - Referencia: https://canelo-scout-registro.netlify.app/
-- Cuenta GitHub prevista: `peterferreras`; publicación pendiente.
+- Repositorio GitHub: https://github.com/PeterFerreras/CaneloScout
 
 No se ha seleccionado proveedor definitivo ni validado costos o capacidad. La elección depende del volumen de registros, concurrencia, tamaño y retención de archivos.

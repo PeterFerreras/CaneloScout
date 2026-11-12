@@ -2,7 +2,7 @@
 
 Maqueta funcional para presentar el flujo digital del Canelo Scout Invitational 2026.
 
-Para continuar desde otro equipo, consulta [el contexto y las limitaciones](docs/CONTEXTO.md). Cuenta de GitHub prevista: `peterferreras` (publicación pendiente).
+Para continuar desde otro equipo, consulta [el contexto y las limitaciones](docs/CONTEXTO.md). Repositorio: [PeterFerreras/CaneloScout](https://github.com/PeterFerreras/CaneloScout).
 
 ## Alcance
 
