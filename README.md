@@ -1,25 +1,29 @@
-# Canelo Scout Invitational MVP
+# CaneloScout — aplicación de scouting y eventos deportivos
 
-Maqueta funcional para presentar el flujo digital del Canelo Scout Invitational 2026.
+CaneloScout evoluciona a partir de la maqueta visual conservada en `dist/index.html`.
 
-Para continuar desde otro equipo, consulta [el contexto y las limitaciones](docs/CONTEXTO.md). Repositorio: [PeterFerreras/CaneloScout](https://github.com/PeterFerreras/CaneloScout).
+## Portales y recorridos
 
-## Alcance
+**Portal público** (sin inicio de sesión):
+- `/`: presentación del programa y ediciones disponibles.
+- `/eventos`: catálogo de eventos públicos.
+- `/eventos/:id`: ficha informativa del evento.
+- `/registro?event=:id`: inscripción real al evento abierto (4 pasos).
+- `/prensa?event=:id`: perfiles autorizados y publicados en Media Center.
 
-- Registro público sin creación de cuenta.
-- Validación de campos, cálculo de edad y autorización para menores.
-- Carga simulada de fotografía y comprobante de pago.
-- Revisión y aprobación de solicitudes.
-- Profundidad por posición principal y secundaria.
-- Construcción de equipos y operación del róster.
-- Asignación de números, check-in y mediciones.
-- Media Center para prensa y scouts.
+**Back office** (autenticación obligatoria):
+- `/admin/`: lista, creación y configuración de ediciones.
+- `/admin/?event=:id&vista=solicitudes`: revisión de expedientes y comprobantes.
+- `/admin/?event=:id&vista=rosters`: profundidad por posición y equipos.
+- `/admin/?event=:id&vista=operacion`: check-in, números y mediciones.
+- `/admin/?event=:id&vista=prensa`: controles de publicación.
+- `/admin/preview?event=:id`: vista previa del registro (no guarda datos).
 
-## Ejecutar localmente
+**Importante:** el público y el back office comparten datos y servicios, pero tienen menús, estilos y documentos HTML diferentes. No se debe volver a mostrar la administración en la navegación pública.
 
-### Aplicación con varios eventos
+## Ejecución local
 
-En PowerShell, desde la raíz del proyecto, con Node.js 22.13 o posterior:
+Se necesita **Node.js 22.13 o posterior**.
 
 ```powershell
 npm ci
@@ -27,55 +31,36 @@ $env:ADMIN_PASSWORD = Read-Host 'Contraseña del administrador (mínimo 12 carac
 npm start
 ```
 
-Abre el [panel de eventos](http://127.0.0.1:8091/admin/) e inicia sesión con
-`admin` y la contraseña que configuraste. Crea un evento con sus fechas, sede e
-instrucciones de pago. Marca **Habilitar formulario público** para obtener un
-enlace y un QR descargable. La [página pública](http://127.0.0.1:8091/) lista los
-eventos disponibles.
-En el panel, **Ver formulario de inscripción** abre una vista previa incluso
-antes de habilitar un evento. El enlace público aparece cuando abres las
-inscripciones.
+Abre `http://127.0.0.1:8091/` para el portal público y `http://127.0.0.1:8091/admin/` para ingresar como `admin`.
 
-Cada evento tiene sus propias solicitudes, equipos, check-in, mediciones y
-perfiles de prensa. El administrador revisa los comprobantes manualmente y
-decide qué perfiles deportivos publicar. Puedes cerrar las inscripciones desde
-**Configuración** sin perder las solicitudes recibidas.
+El primer paso es crear un evento en el panel, con nombre, descripción pública, fechas, sede e instrucciones de pago. Al habilitar las inscripciones, el sistema muestra su enlace y QR.
 
-Los datos y archivos se guardan en `data/registrations.sqlite`. Por defecto el
-servidor escucha en `127.0.0.1:8091`. Antes de distribuir el QR, configura
-`PUBLIC_ORIGIN` con la dirección HTTPS accesible desde los teléfonos. Ese
-dominio debe dirigir al servidor Node, mediante un proxy HTTPS o el proveedor
-de alojamiento. Usa `BIND_HOST` y `PORT` si el entorno de alojamiento lo requiere.
-Una dirección local sirve para pruebas en el mismo equipo.
+Para compartir enlaces desde dispositivos externos, configura `PUBLIC_ORIGIN` con la URL HTTPS pública del servidor, no con `127.0.0.1`. Usa `BIND_HOST` y `PORT` según el alojamiento.
 
-### Maqueta de presentación
+## Organización del código
 
-El MVP es un sitio estático. Puede abrirse `dist/index.html` directamente o servirse con cualquier servidor HTTP:
+- `server.mjs`: rutas, seguridad, datos y acciones del servidor Node.js.
+- `server/views.mjs`: plantillas de salida y layouts independientes.
+- `registration.js`: validación, pasos, carga de archivos y envío del registro público.
+- `public.css`: adaptación visual del portal público y Media Center.
+- `operations.js` y `operations.css`: interfaz operativa privada.
+- `dist/index.html`: **maqueta original de referencia**, no aplicación de producción.
+- `data/registrations.sqlite`: datos y archivos persistentes (excluidos de Git).
 
-```powershell
-python -m http.server 8080 --directory dist
-```
+Ejecuta `npm run check` para revisar sintaxis sin iniciar el servidor.
 
-Después, abrir `http://localhost:8080`.
+## Recorrido para presentar al cliente
 
-## Persistencia
+1. Mostrar la portada pública y los eventos disponibles.
+2. Crear y editar una edición desde el back office, con fechas, sede y descripción.
+3. Abrir la inscripción, mostrar el enlace y descargar el QR.
+4. Completar un formulario público de prueba, incluida la fotografía y el comprobante.
+5. Revisar el expediente, aprobar al jugador y asignarlo a un equipo por posición.
+6. Registrar asistencia, número de chaqueta y mediciones.
+7. Autorizar la publicación y mostrar el perfil en Media Center.
 
-La maqueta usa `localStorage` para simular solicitudes y cambios dentro del navegador. No incluye base de datos ni almacenamiento real de archivos.
+Hay datos ficticios de demostración cuando no existe ningún evento; no deben confundirse con datos persistentes.
 
-El comprobante ampliado es de ejemplo, la creación de equipos adicionales y la publicación son simuladas y el panel no está protegido. No introducir datos reales.
+## Límites antes del uso real
 
-Para producción se recomienda separar:
-
-- interfaz pública;
-- panel administrativo autenticado;
-- API y base de datos;
-- almacenamiento privado de fotografías y comprobantes;
-- publicación controlada de perfiles para prensa.
-
-## Publicación
-
-El contenido de `dist` puede desplegarse en MonsterASP, Netlify, Cloudflare Pages, GitHub Pages u otro hosting estático. Las funciones reales de registro y archivos requerirán un backend.
-
-## Privacidad
-
-Los nombres y datos incluidos son ficticios. El repositorio no contiene credenciales, datos personales reales ni identidad institucional ajena al proyecto.
+La aplicación es una **versión de demostración operativa**. Antes de procesar inscripciones reales, faltan usuarios y roles individuales, recuperación de cuenta, auditoría, endurecimiento de permisos, protección y retención de documentos, pruebas integrales y revisión del despliegue. No usar documentos ni datos personales reales durante la presentación.
