@@ -254,75 +254,138 @@ function demonstration() {
 
 function navigation(eventId, active, privateView = false) {
   const query = eventId ? '?event=' + encodeURIComponent(eventId) : '';
+  if (!privateView) {
+    const links = [
+      ['Inicio', '/'],
+      ['Eventos', '/eventos'],
+      ['Media Center', '/prensa' + query]
+    ];
+    if (eventId && getEvent(eventId)?.accepting) links.push(['Inscribirme', '/registro' + query]);
+    else if (listEvents().some(event => event.accepting)) links.push(['Inscribirme', '/eventos']);
+    return '<nav class="public-nav" aria-label="Navegación pública">' +
+      links.map(([label, href]) => '<a href="' + escape(href) + '"' +
+        (active === label ? ' aria-current="page"' : '') +
+        (label === 'Inscribirme' ? ' class="nav-cta"' : '') + '>' + label + '</a>').join('') + '</nav>';
+  }
   const panel = '/admin/' + query;
+  const sep = query ? '&' : '?';
   const links = [
-    ['Presentación', '/'], ['Registro', '/registro' + query],
-    ['Solicitudes', panel + (query ? '&' : '?') + 'vista=solicitudes'],
-    ['Rósters', panel + (query ? '&' : '?') + 'vista=rosters'],
-    ['Evento', panel + (query ? '&' : '?') + 'vista=operacion'],
-    ['Prensa', '/prensa' + query],
-    ['Configuración', panel]
+    ['Eventos', '/admin/'],
+    ['Solicitudes', panel + sep + 'vista=solicitudes'],
+    ['Profundidad', panel + sep + 'vista=rosters'],
+    ['Operación', panel + sep + 'vista=operacion'],
+    ['Publicación', panel + sep + 'vista=prensa'],
+    ['Ver portal ↗', '/']
   ];
-  if (privateView && eventId && !getEvent(eventId)?.accepting) links[1][1] = '/admin/preview' + query;
-  return '<div class="links ops-links">' + links.map(([label, href]) =>
-    `<a href="${escape(href)}"${label === active ? ' aria-current="page"' : ''}>${label}</a>`).join('') + '</div>';
+  return '<nav class="links ops-links" aria-label="Navegación de administración">' +
+    links.map(([label, href]) => '<a href="' + escape(href) + '"' +
+      ((label === active || label === 'Eventos' && active === 'Configuración') ? ' aria-current="page"' : '') +
+      '>' + label + '</a>').join('') + '</nav>';
+}
+
+function documentHead(title, privateView = false) {
+  return root.slice(0, root.indexOf('</head>'))
+    .replace('<title>Canelo Scout Invitational · MVP</title>',
+      '<title>' + escape(title) + ' | Canelo Scout</title>') +
+    '<link rel="stylesheet" href="' + (privateView ? '/operations.css' : '/public.css') + '"></head>';
+}
+
+function header(eventId = '', active = 'Inicio', privateView = false) {
+  return '<div class="stripe"></div><header><div class="nav ' +
+    (privateView ? 'admin-header' : 'public-header') + '">' +
+    '<a class="brand public-brand" href="/"><span class="mark" aria-hidden="true">CS</span>' +
+    '<span><small>PLATAFORMA DE SCOUTING</small><strong>CANELO SCOUT</strong></span></a>' +
+    navigation(eventId, active, privateView) + '</div></header>';
+}
+
+function footer(privateView = false) {
+  return '<footer class="' + (privateView ? '' : 'public-footer') +
+    '"><div class="wrap"><strong>CANELO SCOUT</strong>' +
+    '<p>' + (privateView ? 'Centro de control de eventos deportivos.' :
+    'Registro de jugadores, eventos y perfiles de scouting.') + '</p></div></footer>';
 }
 
 function html(res, title, content, script = '', options = {}) {
-  const head = root.slice(0, root.indexOf('</head>'))
-    .replace('<title>Canelo Scout Invitational · MVP</title>', () => '<title>' + escape(title) + ' | Canelo Scout</title>');
+  const privateView = !!options.privateView;
+  const eventId = options.eventId ?? '';
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  return res.end(`${head}<link rel="stylesheet" href="/operations.css"></head><body><div class="stripe"></div>
-    <header><div class="nav"><a class="brand ops-brand" href="/"><span class="mark" aria-hidden="true">CS</span>
-    <span><small>PLATAFORMA OFICIAL</small><strong>CANELO SCOUT</strong></span></a>${navigation(options.eventId, options.active, options.privateView)}</div></header>
-    <main class="${options.fullWidth ? '' : 'app '}workspace">${options.hideTitle ? '' : `<div class="apphead"><div><h1>${escape(title)}</h1></div></div>`}${content}</main>
-    <footer><div class="wrap"><strong>CANELO SCOUT INVITATIONAL</strong></div></footer>${script}</body></html>`);
+  return res.end(documentHead(title, privateView) + '<body>' +
+    header(eventId, options.active || 'Inicio', privateView) +
+    '<main class="' + (privateView ? 'workspace' : 'public-main') + ' ' +
+      (options.fullWidth ? '' : 'app') + '">' +
+      (options.hideTitle ? '' : '<div class="apphead"><div><h1>' + escape(title) + '</h1></div></div>') +
+      content + '</main>' + footer(privateView) + script + '</body></html>');
 }
 
 function registrationPage(event, preview = false) {
   const format = new Intl.DateTimeFormat('es-DO', { dateStyle: 'long', timeZone: 'UTC' });
   const dateLabel = event.starts === event.ends ? format.format(new Date(event.starts)) :
     format.formatRange(new Date(event.starts), new Date(event.ends));
-  return root.replaceAll('7 y 8 de noviembre de 2026 · República Dominicana', () => escape(dateLabel + ' · ' + event.venue))
-    .replace('<title>Canelo Scout Invitational · MVP</title>', () => '<title>' + escape(event.name) + ' | Inscripción</title>')
-    .replace('<h1>CANELO SCOUT INVITATIONAL</h1>', () => '<h1>' + escape(event.name) + '</h1>')
+  let content = root.slice(root.indexOf('<main id="register"'), root.indexOf('<main id="admin"'))
+    .replace('<main id="register" class="view">', '<main id="register" class="view active public-main">')
+    .replace('<h1>CANELO SCOUT INVITATIONAL</h1>', '<h1>' + escape(event.name) + '</h1>')
+    .replace('7 y 8 de noviembre de 2026 · República Dominicana', escape(dateLabel + ' · ' + event.venue))
     .replace('Asistencia 7 y 8 de noviembre', 'Disponibilidad para el evento')
-    .replace('US$100 o RD$6,200', 'Comprobante de inscripción')
-    .replace(/<div class="pay">.*?<\/div>/, () => '<div class="pay" style="white-space:pre-wrap">' + escape(event.payment_instructions || 'Instrucciones de pago por configurar.') + '</div>')
-    .replace(/<div class="links">.*?<\/div><span class="pill">MAQUETA MVP<\/span>/s, () => navigation(event.id, 'Registro', preview))
-    .replace('</head>', '<link rel="stylesheet" href="/operations.css"></head>')
-    .replace('Esta maqueta conserva los datos solo en este navegador.', 'La solicitud quedó guardada.')
-    .replace('Maqueta funcional MVP · Registro, validación, rósters, evento y prensa. No almacena información en un servidor; las cargas se simulan localmente para presentar el flujo.',
-      preview ? 'Vista previa del formulario de inscripción.' : 'Registro oficial · Canelo Scout Invitational')
-    .replace('new Date(v)', "new Date(v + 'T00:00:00')")
-    .replace("new Date('2026-11-07')", "new Date('" + event.starts + "T12:00:00')")
-    .replace('REGISTRO ABIERTO', preview ? 'VISTA PREVIA' : 'REGISTRO ABIERTO')
-    .replace('<div id="formarea"', () => (preview ? `<div class="notice"><p>Puedes recorrer el formulario. Para enviar una inscripción, elige un evento abierto.</p>
-      <label>Evento<select onchange="if(this.value)location.href='/registro?event='+encodeURIComponent(this.value)">
-      <option value="">Seleccionar evento</option>${listEvents().filter(item => item.accepting).map(item =>
-        `<option value="${item.id}">${escape(item.name)}</option>`).join('')}</select></label></div>` : '') + '<div id="formarea"')
-    .replace('</body>', `<div id="active-event" data-id="${escape(event.id)}" data-preview="${preview}" hidden></div><script src="/registration.js"></script></body>`);
+    .replace('US$100 o RD$6,200', 'Información del evento')
+    .replace(/<div class="pay">.*?<\/div>/,
+      '<div class="pay" style="white-space:pre-wrap">' +
+      escape(event.payment_instructions || 'Consulta con la organización las instrucciones de pago.') + '</div>')
+    .replace('La descripción debe incluir el nombre del jugador. Asistencia: <strong>+1 914-490-9560</strong>.',
+      'Verifica los datos de pago con la organización antes de realizar una transferencia.')
+    .replace('Esta maqueta conserva los datos solo en este navegador.', 'Tu solicitud fue recibida y se encuentra en revisión.')
+    .replace('<button class="btn" onclick="go(\'admin\')">Ver en solicitudes</button>',
+      '<a class="btn" href="/">Volver al inicio</a>')
+    .replace('REGISTRO ABIERTO', preview ? 'VISTA PREVIA' : 'REGISTRO ABIERTO');
+  if (preview) content = content.replace('<div id="formarea"',
+    '<div class="notice" role="note">Vista previa: puedes recorrer el formulario sin guardar solicitudes.</div><div id="formarea"');
+  return documentHead(preview ? 'Vista previa de inscripción' : event.name + ' · Inscripción') +
+    '<body>' + header(event.id, 'Inscribirme') + content + footer() +
+    '<div id="toast" class="toast" role="status" aria-live="polite"></div>' +
+    '<div id="active-event" data-id="' + escape(event.id) + '" data-starts="' +
+    escape(event.starts) + '" data-preview="' + preview + '" hidden></div>' +
+    '<script src="/registration.js" defer></script></body></html>';
+}
+
+function eventCards(events) {
+  return events.map(event => {
+    const link = '/eventos/' + encodeURIComponent(event.id);
+    const description = event.description ? '<p>' + escape(event.description) + '</p>' : '';
+    return '<article class="card event-card"><span class="tag ' +
+      (event.accepting ? 'ok' : 'blue') + '">' +
+      (event.accepting ? 'Inscripciones abiertas' : 'Evento disponible') +
+      '</span><h3>' + escape(event.name) + '</h3>' + description +
+      '<p class="event-meta">' + escape(event.venue) + '</p>' +
+      '<p>' + escape(event.starts) + ' — ' + escape(event.ends) + '</p>' +
+      '<div class="actions"><a class="btn light" href="' + link + '">Ver detalles</a>' +
+      (event.accepting ? '<a class="btn red" href="/registro?event=' +
+      encodeURIComponent(event.id) + '">Inscribirme</a>' : '') +
+      '</div></article>';
+  }).join('');
+}
+
+function publicEvents() {
+  return listEvents().filter(event => event.accepting || db.prepare(
+    'SELECT 1 FROM operations o JOIN registrations r ON r.id=o.id WHERE r.event_id=? AND o.published=1 LIMIT 1'
+  ).get(event.id));
 }
 
 function presentationPage() {
-  const available = listEvents().filter(event => event.accepting || db.prepare(
-    'SELECT 1 FROM operations o JOIN registrations r ON r.id = o.id WHERE r.event_id = ? AND o.published = 1 LIMIT 1'
-  ).get(event.id));
-  const cards = available.map(event => `<article class="card pad">
-    <h3>${escape(event.name)}</h3><p>${escape(event.venue)} · ${event.starts} a ${event.ends}</p>
-    <div class="actions">${event.accepting ? `<a class="btn red" href="/registro?event=${event.id}">Inscribirme</a>` : ''}
-    <a class="btn light" href="/prensa?event=${event.id}">Media Center</a></div></article>`).join('');
-  const original = root.slice(0, root.indexOf('<main id="register"'));
-  return original
-    .replace('<title>Canelo Scout Invitational · MVP</title>', '<title>Canelo Scout Invitational</title>')
-    .replace(' onclick="go(\'home\')"', ' onclick="location.href=\'/\'"')
-    .replace(/<div class="links">.*?<\/div><span class="pill">MAQUETA MVP<\/span>/s, () => navigation('', 'Presentación'))
-    .replace('</head>', '<link rel="stylesheet" href="/operations.css"></head>')
-    .replace("go('register')", "location.href='/registro'")
-    .replace("go('admin')", "location.href='/admin/'")
-    .replace(/<p style="font-size:12px;margin-top:25px">7 y 8 de noviembre de 2026 · República Dominicana<\/p>/, '')
-    + `<section class="section" id="eventos"><div class="wrap"><div class="head"><h2>EVENTOS</h2></div>
-      ${cards || '<p>Por el momento no hay eventos disponibles.</p>'}</div></section></body></html>`;
+  let home = root.slice(root.indexOf('<main id="home"'), root.indexOf('<main id="register"'))
+    .replace('<main id="home" class="view active">', '<main id="home" class="view active public-main">')
+    .replace('<button class="btn red" onclick="go(\'register\')">Comenzar registro</button>',
+      '<a class="btn red" href="/eventos">Comenzar registro</a>')
+    .replace('<button class="btn white" onclick="go(\'admin\')">Ver centro de control</button>',
+      '<a class="btn white" href="/#eventos">Ver eventos</a>')
+    .replace(/7 y 8 de noviembre de 2026/g, 'Próximas ediciones');
+  const available = publicEvents();
+  const catalog = '<section class="section event-catalog" id="eventos"><div class="wrap">' +
+    '<div class="head"><div><span class="eyebrow">Canelo Scout</span><h2>EVENTOS</h2>' +
+    '<p>Consulta las ediciones disponibles, las fechas y el proceso de inscripción.</p></div></div>' +
+    (available.length ? '<div class="event-list">' + eventCards(available) + '</div>' :
+      '<div class="card public-empty">Actualmente no hay eventos abiertos para inscripción.</div>') +
+    '</div></section>';
+  return documentHead('Inicio') + '<body>' + header('', 'Inicio') +
+    home + catalog + footer() + '</body></html>';
 }
 
 function roster(eventId) {
@@ -469,7 +532,8 @@ async function admin(req, res, path, url) {
 const assets = new Map([
   ['/registration.js', [registrationScript, 'text/javascript']],
   ['/operations.js', [operationsScript, 'text/javascript']],
-  ['/operations.css', [readFileSync(new URL('./operations.css', import.meta.url)), 'text/css']]
+  ['/operations.css', [readFileSync(new URL('./operations.css', import.meta.url)), 'text/css']],
+  ['/public.css', [readFileSync(new URL('./public.css', import.meta.url)), 'text/css']]
 ]);
 
 createServer(async (req, res) => {
@@ -493,10 +557,35 @@ createServer(async (req, res) => {
       return res.end(presentationPage());
     }
     const event = getEvent(url.searchParams.get('event'));
+    if (req.method === 'GET' && path === '/eventos') {
+      const available = publicEvents();
+      return html(res, 'Eventos disponibles', '<div class="selection-grid"><p>Selecciona una edición para consultar sus detalles o inscribirte.</p>' +
+        (available.length ? '<div class="event-list">' + eventCards(available) + '</div>' :
+          '<div class="card public-empty">No hay ediciones públicas disponibles en este momento.</div>') + '</div>',
+        '', { active: 'Eventos' });
+    }
+    const eventRoute = path.match(/^\/eventos\/([a-f0-9-]{36})$/);
+    if (req.method === 'GET' && eventRoute) {
+      const selectedEvent = getEvent(eventRoute[1]);
+      if (!selectedEvent) return html(res, 'Evento no encontrado', '<p>Consulta los eventos disponibles.</p><a href="/eventos">Volver a eventos</a>');
+      const isPublic = publicEvents().some(item => item.id === selectedEvent.id);
+      if (!isPublic) return html(res, 'Evento no disponible', '<p>Este evento todavía no está publicado.</p><a href="/eventos">Ver otros eventos</a>');
+      const content = '<section class="card pad"><span class="eyebrow">Canelo Scout Invitational</span>' +
+        '<h2 class="display">' + escape(selectedEvent.name) + '</h2>' +
+        (selectedEvent.description ? '<p>' + escape(selectedEvent.description) + '</p>' : '') +
+        '<p><strong>Fechas:</strong> ' + escape(selectedEvent.starts) + ' — ' + escape(selectedEvent.ends) + '</p>' +
+        '<p><strong>Sede:</strong> ' + escape(selectedEvent.venue) + '</p>' +
+        (selectedEvent.accepting ? '<a class="btn red" href="/registro?event=' + encodeURIComponent(selectedEvent.id) + '">Inscribirme</a>' :
+          '<p class="notice">Las inscripciones no están abiertas en este momento.</p>') +
+        ' <a class="btn light" href="/prensa?event=' + encodeURIComponent(selectedEvent.id) + '">Media Center</a></section>';
+      return html(res, selectedEvent.name, content, '', { active: 'Eventos', eventId: selectedEvent.id, hideTitle: true });
+    }
     if (req.method === 'GET' && path === '/registro' && !event) {
-      const date = new Date().toISOString().slice(0, 10);
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.end(registrationPage({id:'',name:'Registro de jugadores',starts:date,ends:date,venue:'Selecciona un evento',payment_instructions:''}, true));
+      if (url.searchParams.has('event')) {
+        res.statusCode = 404;
+        return html(res, 'Evento no encontrado', '<p>El enlace no corresponde a un evento válido.</p><a href="/eventos">Ver eventos disponibles</a>');
+      }
+      return redirect(res, '/eventos');
     }
     if (req.method === 'GET' && path === '/registro' && event) {
       if (!event.accepting) {
