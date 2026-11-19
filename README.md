@@ -44,11 +44,14 @@ Para compartir enlaces desde dispositivos externos, configura `PUBLIC_ORIGIN` co
 - `server/views.mjs`: plantillas de salida y layouts independientes.
 - `registration.js`: validación, pasos, carga de archivos y envío del registro público.
 - `public.css`: adaptación visual del portal público y Media Center.
-- `operations.js` y `operations.css`: interfaz operativa privada.
+- `operations.js` y `operations.css`: controlador y estilos de la interfaz privada.
+- `client/solicitudes.js`, `profundidad.js`, `operacion.js` y `publicacion.js`: pantallas independientes que conservan la estructura visual de la maqueta.
+- `server/workflow.mjs`: reglas de revisión, pago, asignación, mediciones y publicación.
 - `dist/index.html`: **maqueta original de referencia**, no aplicación de producción.
 - `data/registrations.sqlite`: datos y archivos persistentes (excluidos de Git).
 
 Ejecuta `npm run check` para revisar sintaxis sin iniciar el servidor.
+Ejecuta `npm test` para probar el recorrido HTTP con SQLite temporal, sin tocar `data/`. `DATA_DIR` permite usar otra carpeta para pruebas o despliegues.
 
 ## Recorrido para presentar al cliente
 
@@ -56,11 +59,13 @@ Ejecuta `npm run check` para revisar sintaxis sin iniciar el servidor.
 2. Crear y editar una edición desde el back office, con fechas, sede y descripción.
 3. Abrir la inscripción, mostrar el enlace y descargar el QR.
 4. Completar un formulario público de prueba, incluida la fotografía y el comprobante.
-5. Revisar el expediente, aprobar al jugador y asignarlo a un equipo por posición.
+5. Revisar el expediente, validar el pago por separado, aprobar al jugador y asignarlo a un equipo por posición. Para pedir corrección, escribir una nota y cambiar el estado; el participante puede reenviar el formulario desde Seguimiento conservando su código.
 6. Registrar asistencia, número de chaqueta y mediciones.
 7. Autorizar la publicación y mostrar el perfil en Media Center.
 
-Hay datos ficticios de demostración cuando no existe ningún evento; no deben confundirse con datos persistentes.
+Un sistema sin eventos o solicitudes muestra estados vacíos, nunca jugadores ficticios automáticos. La referencia visual original sigue disponible en `dist/index.html`. Nombre, fechas, duración, sede, descripción, tarifa, contacto e instrucciones de pago se gestionan por edición. El código de seguimiento es privado: quien lo tenga puede consultar el estado y reenviar una solicitud habilitada para corrección.
+
+La aprobación previa a esta actualización también validaba el pago: la migración conserva esa decisión en expedientes existentes. Las nuevas solicitudes empiezan con pago pendiente. Solo se publican jugadores aprobados, con equipo, consentimiento y pago validado. Cambiar de equipo limpia camiseta, asistencia, mediciones y publicación; retirar aprobación o validación de pago retira el perfil público.
 
 ## Límites antes del uso real
 

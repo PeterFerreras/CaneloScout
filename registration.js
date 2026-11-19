@@ -138,7 +138,7 @@
       const response = await fetch('/api/registrations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId, fields, photo, receipt })
+        body: JSON.stringify({ eventId, correctionCode: active.dataset.correction || '', fields, photo, receipt })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo enviar la solicitud.');

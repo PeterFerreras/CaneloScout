@@ -1,15 +1,20 @@
+import { render as solicitudes } from '/client/solicitudes.js';
+import { render as profundidad } from '/client/profundidad.js';
+import { render as operacion } from '/client/operacion.js';
+import { render as publicacion } from '/client/publicacion.js';
 const mount = document.querySelector('#operations');
 const escape = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const params = new URLSearchParams(location.search);
 const eventId = params.get('event');
-const view = params.get('vista') || 'configuracion';
+const requestedView = params.get('vista');
+const view = ['solicitudes', 'rosters', 'operacion', 'prensa'].includes(requestedView) ? requestedView : 'configuracion';
 const labels = { review: 'Por revisar', correction: 'Requiere corrección', rejected: 'No elegible', approved: 'Aprobado' };
 const tabs = { configuracion: 'Configuración', solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', prensa: 'Publicación' };
 const headings = { configuracion: 'Configuración del evento', solicitudes: 'Solicitudes y validación',
   rosters: 'Profundidad por posición', operacion: 'Rósters del Invitational', prensa: 'Publicación para prensa' };
 const nextScreen = { solicitudes: ['rosters', 'Armar equipos'], rosters: ['operacion', 'Continuar al evento'],
   operacion: ['prensa', 'Publicar para prensa'] };
-const eventQuery = '?event=' + encodeURIComponent(eventId ?? '');
+const eventQuery = eventId ? '?event=' + encodeURIComponent(eventId) : '?';
 let screenPlayers = [];
 let demoState;
 
@@ -32,6 +37,8 @@ function eventForm(event = {}) {
     <label>Nombre del evento<input name="name" required maxlength="120" value="${escape(event.name)}"></label>
     <label>Sede<input name="venue" required maxlength="160" value="${escape(event.venue)}"></label>
     <label>Descripción pública<textarea name="description" maxlength="1200" placeholder="Presenta el evento, objetivos y requisitos principales.">${escape(event.description)}</textarea></label>
+    <label>Importe / tarifa pública<input name="fee_label" maxlength="120" value="${escape(event.fee_label)}" placeholder="Ej. US$100 o entrada gratuita"></label>
+    <label>Contacto de la organización<input name="contact" maxlength="250" value="${escape(event.contact)}"></label>
     <div class="row"><label>Fecha de inicio<input type="date" name="starts" required value="${escape(event.starts)}"></label>
     <label>Fecha de cierre<input type="date" name="ends" required value="${escape(event.ends)}"></label></div>
     <label>Instrucciones de pago<textarea name="payment_instructions" maxlength="2000">${escape(event.payment_instructions)}</textarea></label>
@@ -72,66 +79,14 @@ function operationRow(player) {
     <td><span class="tag blue">${escape(player.team)}</span><form id="${form}" data-action="operate" data-player="${player.id}"><button>Guardar</button></form></td></tr>`;
 }
 
-function renderScreen({ event, teams, players }) {
-  const approved = players.filter(player => player.status === 'approved');
+function renderScreen(data) {
+  const { event } = data;
+  const context = { escape, labels, initials, statusTag, playerForm, empty, positions, selected, operationRow, eventQuery, eventId, demoState, params };
   switch (view) {
-    case 'solicitudes':
-      return `<div class="metrics">${[['Solicitudes', players.length], ['Por revisar', players.filter(p => p.status === 'review').length],
-        ['Aprobadas', approved.length], ['Equipos creados', teams.length]].map(([label, count]) => `<div class="card metric"><small>${label}</small><strong>${count}</strong></div>`).join('')}</div>
-        <div class="ops-inbox"><section class="card"><h2 class="display">Bandeja de solicitudes</h2>
-        <div class="toolbar"><input type="search" data-search aria-label="Buscar jugador" placeholder="Buscar jugador…">
-        <select data-status aria-label="Filtrar estado"><option value="">Todos los estados</option>${Object.entries(labels).map(([value,label]) => `<option value="${value}">${label}</option>`).join('')}</select></div>
-        ${players.map(player => `<button type="button" class="request" data-review="${player.id}"><span class="avatar">${initials(player.details.name)}</span>
-          <span><strong>${escape(player.details.name)}</strong><small>${player.id} · ${escape(player.details.age)} años</small></span>
-          <span><strong>${escape(player.details.primary)}</strong><small>${escape(player.details.secondary)}</small></span>${statusTag(player.status)}</button>`).join('')}
-        <p data-review-empty hidden>No hay solicitudes que coincidan.</p></section><section>` +
-        (players.map(player => playerForm(player, 'review', `
-        <div class="photo">${demoState ? initials(player.details.name) : `<img src="/admin/registrations/${player.id}/photo?ver=1" alt="Foto de ${escape(player.details.name)}">`}</div>
-        ${statusTag(player.status)}<div class="data"><div><small>Edad</small><b>${escape(player.details.age)} años</b></div>
-        <div><small>Batea / lanza</small><b>${escape(player.details.bats)} / ${escape(player.details.throws)}</b></div></div>
-        <p>${escape(player.details.email)} · ${escape(player.details.phone)} · ${escape(player.details.age)} años</p>
-        <h4>Documento cargado</h4><p class="receipt">Comprobante de pago · Ref. ${escape(player.details.payref || '—')}</p>
-        ${demoState ? '<p class="notice">Comprobante de ejemplo · RD$ 6,200.00</p>' : `<a class="btn light" href="/admin/registrations/${player.id}/receipt?ver=1" target="_blank" rel="noopener">Ampliar comprobante</a>`}
-        <details><summary>Datos de inscripción</summary><dl>${Object.entries({
-          'Código': player.id, 'Fecha de nacimiento': player.details.birth, 'Nacionalidad': player.details.nationality,
-          'Ciudad': player.details.city, 'Tutor': player.details.guardian, 'Teléfono del tutor': player.details.guardianPhone,
-          'Academia': player.details.academy, 'Nivel': player.details.level, 'Batea': player.details.bats, 'Lanza': player.details.throws,
-          'Estatura': player.details.height, 'Peso': player.details.weight, 'Asistencia': player.details.attendance,
-          'Referencia de pago': player.details.payref
-        }).map(([label, value]) => `<dt>${label}</dt><dd>${escape(value || '—')}</dd>`).join('')}</dl></details>
-        <label>Nota interna<textarea name="note" placeholder="Observaciones…" maxlength="2000">${escape(player.note)}</textarea></label>
-        <div class="decisions"><button name="status" value="correction">Pedir corrección</button>
-        <button name="status" value="rejected">No elegible</button><button name="status" value="approved">Aprobar solicitud y pago</button>
-        <button name="status" value="${player.status}">Guardar nota</button></div>`)).join('') ||
-        empty('Todavía no se han recibido solicitudes.')) + '</section></div>';
-    case 'rosters':
-      return `<p class="notice warn">Selecciona una posición para consultar jugadores por su posición principal o secundaria.</p>
-        <div class="diamondgrid"><div><div class="diamond" aria-label="Posiciones de béisbol">${positions.map(([position, short, left, top]) =>
-          `<button class="pos" type="button" style="left:${left}%;top:${top}%" data-position="${position}" aria-label="${position}" aria-pressed="false">
-          ${short} <span>${approved.filter(player => [player.details.primary, player.details.secondary].includes(position)).length}</span></button>`).join('')}</div>
-          <p><button type="button" data-position="" aria-pressed="true">Todas las posiciones</button></p></div><div>
-          <h3>Jugadores aprobados</h3><p id="position-empty" hidden>Sin jugadores en esta posición.</p>` +
-        (approved.map(player => `<form class="chip assignment" data-action="assign" data-player="${player.id}"><span class="avatar">${initials(player.details.name)}</span>
-          <span><b>${escape(player.details.name)}</b><small>${escape(player.details.primary)} / ${escape(player.details.secondary || '—')}</small></span>
-          <label class="sr-only" for="team-${player.id}">Equipo de ${escape(player.details.name)}</label><select id="team-${player.id}" name="team_id" data-autoassign>
-          <option value="">Sin asignar</option>${teams.filter(team => !player.event_id || team.event_id === player.event_id).map(team =>
-            `<option value="${team.id}" ${selected(player.team_id, team.id)}>${escape(team.name)}</option>`).join('')}</select><button class="sr-only">Guardar</button></form>`).join('') ||
-          empty('Los jugadores aprobados aparecerán aquí.')) +
-          `${eventId || demoState ? '<form class="team-create" data-action="team"><label>Nuevo equipo<input name="name" required maxlength="60" placeholder="Nombre del equipo"></label><button>+ Crear otro equipo</button></form>' : '<p class="notice">Selecciona un evento para crear equipos.</p>'}</div></div>`;
-    case 'operacion': {
-      const assigned = approved.filter(player => player.team_id);
-      const active = teams.some(team => team.id === params.get('equipo')) ? params.get('equipo') : assigned[0]?.team_id;
-      return `<div class="teams ops-team-tabs">${teams.map(team => `<a class="btn ${team.id === active ? '' : 'light'}" href="/admin/${eventQuery}&vista=operacion&equipo=${team.id}">${escape(team.name)}</a>`).join('')}
-        <a class="btn light" href="/admin/${eventQuery}&vista=rosters">+ Nuevo equipo</a></div>
-        <p class="notice">El sistema advierte si un número de camiseta ya está en uso dentro del equipo.</p>
-        <div class="card ops-table"><table><thead><tr><th>Check-in</th><th>Jugador</th><th>Posición</th><th># Chaqueta</th>
-        <th>60 yd</th><th>Velocidad</th><th>Estado</th></tr></thead><tbody>${assigned.filter(player => player.team_id === active).map(operationRow).join('') || '<tr><td colspan="7">Todavía no hay jugadores asignados a equipos.</td></tr>'}</tbody></table></div>`;
-    }
-    case 'prensa':
-      return `<p><a href="/prensa${eventQuery}" target="_blank" rel="noopener">Abrir Media Center</a></p>` +
-        (approved.filter(player => player.team_id && player.details.consent).map(player => playerForm(player, 'publish', `
-          <p>${escape(player.team)}</p><label class="check"><input type="checkbox" name="published" ${player.published ? 'checked' : ''}> Publicar perfil deportivo</label>`)).join('') ||
-          empty('Los jugadores con autorización de publicación y equipo asignado aparecerán aquí.'));
+    case 'solicitudes': return solicitudes(data, context);
+    case 'rosters': return profundidad(data, context);
+    case 'operacion': return operacion(data, context);
+    case 'prensa': return publicacion(data, context);
     default:
       return eventForm(event) + `<section class="card" id="formulario"><h2>Formulario de inscripción</h2>
         <p><a href="/admin/preview${eventQuery}">Ver formulario de inscripción</a></p>${event.accepting ? `
@@ -159,13 +114,6 @@ async function load() {
     return;
   }
   let data = await api('event' + eventQuery);
-  if (data.demo) {
-    if (!demoState) {
-      try { demoState = JSON.parse(sessionStorage.getItem('canelo-demo')) || data; }
-      catch { demoState = data; }
-    }
-    data = demoState;
-  } else demoState = undefined;
   screenPlayers = data.players;
   const events = await api('events');
   const filter = `<label>Evento<select id="event-filter"><option value="">Todos los eventos</option>${events.map(event =>
@@ -265,38 +213,10 @@ mount.addEventListener('submit', async event => {
   const nullableNumber = key => fields[key] === '' ? null : Number(fields[key]);
   const playerEvent = screenPlayers.find(player => player.id === form.dataset.player)?.event_id ?? eventId;
   const playerPath = 'registrations/' + form.dataset.player + '?event=' + encodeURIComponent(playerEvent ?? '');
+  if (form.dataset.saving) return;
+  form.dataset.saving = 'true';
   button.disabled = true;
   try {
-    if (demoState && form.dataset.action === 'team') {
-      const name = fields.name.trim();
-      if (demoState.teams.some(team => team.name.toLowerCase() === name.toLowerCase())) throw new Error('Ya existe ese equipo.');
-      demoState.teams.push({ id: 'demo-' + crypto.randomUUID(), event_id: 'demo', name });
-      sessionStorage.setItem('canelo-demo', JSON.stringify(demoState));
-      await load();
-      message('Equipo creado en la demostración.');
-      return;
-    }
-    if (demoState && form.dataset.player) {
-      const player = demoState.players.find(player => player.id === form.dataset.player);
-      if (form.dataset.action === 'review') Object.assign(player, fields);
-      if (form.dataset.action === 'assign') {
-        player.team_id = fields.team_id || null;
-        player.team = demoState.teams.find(team => team.id === player.team_id)?.name || '';
-      }
-      if (form.dataset.action === 'operate' && fields.jersey !== '' && demoState.players.some(other =>
-        other.id !== player.id && other.team_id === player.team_id && other.jersey === Number(fields.jersey))) {
-        throw new Error('Ese número ya está en uso en el equipo.');
-      }
-      if (form.dataset.action === 'operate') Object.assign(player, {
-        checked: !!fields.checked, jersey: nullableNumber('jersey'), sprint: nullableNumber('sprint'), velocity: nullableNumber('velocity')
-      });
-      if (form.dataset.action === 'publish') player.published = !!fields.published;
-      if (player.status !== 'approved') Object.assign(player, {team_id:null,team:'',published:false,checked:false});
-      sessionStorage.setItem('canelo-demo', JSON.stringify(demoState));
-      await load();
-      message('Cambio aplicado a la demostración.');
-      return;
-    }
     switch (form.dataset.action) {
       case 'event': {
         const result = await api('events' + (eventId ? eventQuery : ''), { ...fields, accepting: !!fields.accepting });
@@ -307,7 +227,7 @@ mount.addEventListener('submit', async event => {
         break;
       }
       case 'team': await api('teams' + eventQuery, fields); break;
-      case 'review': await api(playerPath, fields); break;
+      case 'review': case 'payment': await api(playerPath, fields); break;
       case 'assign': await api(playerPath, { team_id: fields.team_id || null }); break;
       case 'operate': await api(playerPath, { checked: !!fields.checked, jersey: nullableNumber('jersey'),
         sprint: nullableNumber('sprint'), velocity: nullableNumber('velocity') }); break;
@@ -318,6 +238,7 @@ mount.addEventListener('submit', async event => {
   } catch (error) {
     message(error.message, true);
   } finally {
+    delete form.dataset.saving;
     button.disabled = false;
   }
 });

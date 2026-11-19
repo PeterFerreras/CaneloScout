@@ -70,7 +70,7 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
         content + '</main>' + footer(privateView) + script + '</body></html>');
   }
   
-  function registrationPage(event, preview = false) {
+  function registrationPage(event, preview = false, correctionCode = '') {
     const format = new Intl.DateTimeFormat('es-DO', { dateStyle: 'long', timeZone: 'UTC' });
     const dateLabel = event.starts === event.ends ? format.format(new Date(event.starts)) :
       format.formatRange(new Date(event.starts), new Date(event.ends));
@@ -82,25 +82,26 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
       .replace('<div class="notice">Completa este formulario', event.description ?
         '<div class="notice">' + escape(event.description) + '</div><div class="notice">Completa este formulario' :
         '<div class="notice">Completa este formulario')
-      .replace('US$100 o RD$6,200', 'Información del evento')
+      .replace('US$100 o RD$6,200', escape(event.fee_label || 'Consulta la tarifa con la organización'))
       .replace(/<div class="pay">.*?<\/div>/,
         '<div class="pay" style="white-space:pre-wrap">' +
         escape(event.payment_instructions || 'Consulta con la organización las instrucciones de pago.') + '</div>')
       .replace('La descripción debe incluir el nombre del jugador. Asistencia: <strong>+1 914-490-9560</strong>.',
-        'Verifica los datos de pago con la organización antes de realizar una transferencia.')
+        escape(event.contact || 'Verifica los datos de pago con la organización antes de realizar una transferencia.'))
       .replace('Esta maqueta conserva los datos solo en este navegador.', 'Tu solicitud fue recibida y se encuentra en revisión.')
     .replace('<div id="code" class="code"></div>',
       '<div id="code" class="code"></div><p><a id="tracking-link" class="btn light" href="/seguimiento">Consultar estado de solicitud</a></p>')
       .replace('<button class="btn" onclick="go(\'admin\')">Ver en solicitudes</button>',
         '<a class="btn" href="/">Volver al inicio</a>')
       .replace('REGISTRO ABIERTO', preview ? 'VISTA PREVIA' : 'REGISTRO ABIERTO');
+    if (correctionCode) content = content.replace('<div id="formarea"', '<div class="notice">Completa nuevamente los datos y adjunta los documentos corregidos. Se conservará tu código de seguimiento.</div><div id="formarea"');
     if (preview) content = content.replace('<div id="formarea"',
       '<div class="notice" role="note">Vista previa: puedes recorrer el formulario sin guardar solicitudes.</div><div id="formarea"');
     return documentHead(preview ? 'Vista previa de inscripción' : event.name + ' · Inscripción') +
       '<body>' + header(event.id, 'Inscribirme') + content + footer() +
       '<div id="toast" class="toast" role="status" aria-live="polite"></div>' +
       '<div id="active-event" data-id="' + escape(event.id) + '" data-starts="' +
-      escape(event.starts) + '" data-preview="' + preview + '" hidden></div>' +
+      escape(event.starts) + '" data-correction="' + escape(correctionCode) + '" data-preview="' + preview + '" hidden></div>' +
       '<script src="/registration.js" defer></script></body></html>';
   }
   
@@ -136,6 +137,9 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
         '<a class="btn white" href="/#eventos">Ver eventos</a>')
       .replace(/7 y 8 de noviembre de 2026/g, 'Próximas ediciones');
     const available = publicEvents();
+    const featured = available[0];
+    const days = featured ? Math.round((new Date(featured.ends) - new Date(featured.starts)) / 86400000) + 1 : null;
+    home = home.replace('Próximas ediciones · República Dominicana', featured ? escape(featured.name + ' · ' + featured.starts + ' — ' + featured.ends + ' · ' + featured.venue) : 'Consulta las próximas ediciones').replace('2 DÍAS', days ? days + (days === 1 ? ' DÍA' : ' DÍAS') : 'EDICIONES').replace('El MVP acompaña', 'La plataforma acompaña');
     const catalog = '<section class="section event-catalog" id="eventos"><div class="wrap">' +
       '<div class="head"><div><span class="eyebrow">Canelo Scout</span><h2>EVENTOS</h2>' +
       '<p>Consulta las ediciones disponibles, las fechas y el proceso de inscripción.</p></div></div>' +

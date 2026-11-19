@@ -1,9 +1,11 @@
 import { createServer } from 'node:http';
+import { pathToFileURL } from 'node:url';
+import { resolve, sep } from 'node:path';
 import { randomBytes, randomUUID, timingSafeEqual, createHash } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import QRCode from 'qrcode';
-import { runInNewContext } from 'node:vm';
+import { updateOperation } from './server/workflow.mjs';
 import { createViews } from './server/views.mjs';
 
 const adminPassword = process.env.ADMIN_PASSWORD;
@@ -13,8 +15,9 @@ if (!['http:', 'https:'].includes(publicOrigin.protocol) || publicOrigin.usernam
   throw new Error('PUBLIC_ORIGIN debe ser una dirección HTTP o HTTPS.');
 }
 const registrationUrl = id => new URL('/registro?event=' + encodeURIComponent(id), publicOrigin).href;
-const databaseDirectory = new URL('./data/', import.meta.url);
+const databaseDirectory = process.env.DATA_DIR ? pathToFileURL(resolve(process.env.DATA_DIR) + sep) : new URL('./data/', import.meta.url);
 const root = readFileSync(new URL('./dist/index.html', import.meta.url), 'utf8')
+  .replace('Sí, ambos días', 'Todo el evento')
   .replace('Solo el día 7', 'Solo el primer día')
   .replace('Solo el día 8', 'Solo el segundo día');
 const registrationScript = readFileSync(new URL('./registration.js', import.meta.url));
@@ -66,6 +69,14 @@ for (const { date } of legacyDates) {
     .run(id, 'Canelo Scout · ' + date, date, date, '');
   db.prepare("UPDATE registrations SET event_id = ? WHERE event_id IS NULL AND json_extract(details, '$.eventDate') = ?").run(id, date);
 }
+for (const [name, definition] of [['fee_label', "TEXT NOT NULL DEFAULT ''"], ['contact', "TEXT NOT NULL DEFAULT ''"]]) {
+  if (!db.prepare('PRAGMA table_info(events)').all().some(c => c.name === name)) db.exec(`ALTER TABLE events ADD COLUMN ${name} ${definition}`);
+}
+if (!db.prepare('PRAGMA table_info(operations)').all().some(c => c.name === 'payment_status')) {
+  db.exec("ALTER TABLE operations ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'pending'");
+  // Before this migration the approval button explicitly validated both application and payment.
+  db.exec("UPDATE operations SET payment_status = 'validated' WHERE status = 'approved'");
+}
 db.exec('INSERT OR IGNORE INTO operations (id) SELECT id FROM registrations');
 
 const required = ['name', 'birth', 'nationality', 'city', 'phone', 'email', 'primary',
@@ -110,7 +121,11 @@ async function readJson(req, limit = 18 * 1024 * 1024) {
 
 async function register(req, res) {
   const input = await readJson(req);
-  const event = typeof input?.eventId === 'string' && db.prepare('SELECT * FROM events WHERE id = ? AND accepting = 1').get(input.eventId);
+  const correction = typeof input?.correctionCode === 'string' && db.prepare(
+    "SELECT r.id, r.event_id FROM registrations r JOIN operations o ON o.id=r.id WHERE r.id=? AND o.status='correction'"
+  ).get(input.correctionCode);
+  if (input?.correctionCode && !correction) return json(res, 422, { error: 'Esta solicitud no está habilitada para corrección.' });
+  const event = correction ? getEvent(correction.event_id) : typeof input?.eventId === 'string' && db.prepare('SELECT * FROM events WHERE id = ? AND accepting = 1').get(input.eventId);
   if (!event) return json(res, 422, { error: 'El evento no recibe inscripciones.' });
   const eventDate = event.starts;
   const details = Object.fromEntries([...required, ...optional].map(name =>
@@ -130,13 +145,19 @@ async function register(req, res) {
   const photo = upload(input.photo, 5, false);
   const receipt = upload(input.receipt, 8, true);
   if (!photo || !receipt) return json(res, 422, { error: 'Usa JPG, PNG o WebP para la foto y esos formatos o PDF para el comprobante.' });
-  const id = 'CSI-' + randomUUID();
+  const id = correction?.id || 'CSI-' + randomUUID();
   db.exec('BEGIN');
   try {
-    db.prepare('INSERT INTO registrations VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    if (correction) {
+      db.prepare('UPDATE registrations SET details=?, photo=?, photo_type=?, receipt=?, receipt_type=? WHERE id=?')
+        .run(JSON.stringify({ ...details, age, eventDate, consent: true, truth: true }), photo.bytes, photo.type, receipt.bytes, receipt.type, id);
+      db.prepare("UPDATE operations SET status='review', payment_status='pending', published=0 WHERE id=?").run(id);
+    } else {
+      db.prepare('INSERT INTO registrations VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(id, new Date().toISOString(), JSON.stringify({ ...details, age, eventDate, consent: true, truth: true }),
         photo.bytes, photo.type, receipt.bytes, receipt.type, event.id);
     db.prepare('INSERT INTO operations (id) VALUES (?)').run(id);
+    }
     db.exec('COMMIT');
   } catch (error) {
     db.exec('ROLLBACK');
@@ -241,27 +262,12 @@ async function login(req, res) {
 const escape = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const getEvent = id => db.prepare('SELECT * FROM events WHERE id = ?').get(id ?? '');
 const listEvents = () => db.prepare('SELECT * FROM events ORDER BY starts DESC, name').all();
-const samplePlayers = runInNewContext(root.match(/const seed=.*?;\r?\n/)[0] + ';seed');
-function demonstration() {
-  const teams = ['Azul', 'Rojo'].map(name => ({ id: 'demo-' + name, event_id: 'demo', name }));
-  return {
-    demo: true, event: { name: 'Demostración · Canelo Scout' }, teams,
-    players: samplePlayers.map(player => ({
-      id: player.id, event_id: 'demo', details: { ...player, consent: true, email: 'ejemplo@example.com', phone: 'Datos de ejemplo' },
-      status: player.status, note: '', team_id: player.team ? 'demo-' + player.team : null, team: player.team,
-      jersey: player.number === '' ? null : player.number, checked: false,
-      sprint: player.sprint ? Number(player.sprint) : null, velocity: parseFloat(player.velo) || null,
-      published: player.status === 'approved'
-    }))
-  };
-}
-
 const { html, registrationPage, presentationPage, publicEvents, eventCards } =
   createViews({ root, getEvent, listEvents, db, escape });
 
 function roster(eventId) {
   return db.prepare(`SELECT r.id, r.event_id, r.created_at, r.details, o.status, o.note, o.team_id, o.jersey,
-    o.checked, o.sprint, o.velocity, o.published, t.name AS team
+    o.payment_status, o.checked, o.sprint, o.velocity, o.published, t.name AS team
     FROM registrations r JOIN operations o ON o.id = r.id LEFT JOIN teams t ON t.id = o.team_id
     WHERE r.event_id = ? ORDER BY r.created_at DESC`).all(eventId)
     .map(row => ({ ...row, details: JSON.parse(row.details) }));
@@ -301,9 +307,9 @@ async function admin(req, res, path, url) {
       const view = url.searchParams.get('vista');
       return redirect(res, '/admin/' + (view ? '?vista=' + encodeURIComponent(view) : ''));
     }
-    const active = ({ solicitudes: 'Solicitudes', rosters: 'Rósters', operacion: 'Evento', prensa: 'Prensa' })[url.searchParams.get('vista')] ?? 'Configuración';
+    const active = ({ solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', prensa: 'Publicación' })[url.searchParams.get('vista')] ?? 'Configuración';
     return html(res, 'Panel de eventos', '<form class="session-actions" method="post" action="/admin/logout"><button>Cerrar sesión</button></form><div id="operations"></div>',
-      '<script src="/operations.js" defer></script>', { eventId, active, privateView: true, hideTitle: true });
+      '<script type="module" src="/operations.js"></script>', { eventId, active, privateView: true, hideTitle: true });
   }
   if (path === '/admin/events' && req.method === 'GET') return json(res, 200, listEvents());
   const event = getEvent(url.searchParams.get('event'));
@@ -317,7 +323,7 @@ async function admin(req, res, path, url) {
   }
   if (req.method === 'GET' && path === '/admin/event') {
     if (!event && url.searchParams.get('event')) return json(res, 404, { error: 'Evento no encontrado.' });
-    if (!event && !listEvents().length) return json(res, 200, demonstration());
+
     return json(res, 200, { event: event ?? {name:'Todos los eventos'},
       registrationUrl: event ? registrationUrl(event.id) : '',
       teams: event ? db.prepare('SELECT * FROM teams WHERE event_id = ? ORDER BY name').all(event.id) : db.prepare('SELECT * FROM teams ORDER BY name').all(),
@@ -336,6 +342,9 @@ async function admin(req, res, path, url) {
     const venue = clean(input?.venue);
     const payment = clean(input?.payment_instructions);
     const description = clean(input?.description);
+    const fee = clean(input?.fee_label);
+    const contact = clean(input?.contact);
+    if (fee.length > 120 || contact.length > 250) return invalid(res, 'Revisa la tarifa y el contacto.');
     if (!name || name.length > 120 || !venue || venue.length > 160 || !validDate(starts ?? '') ||
         !validDate(ends ?? '') || ends < starts || typeof accepting !== 'boolean' || payment.length > 2000 || description.length > 1200) {
       return invalid(res, 'Completa el nombre, la sede y el rango de fechas.');
@@ -352,6 +361,7 @@ async function admin(req, res, path, url) {
       db.prepare('INSERT INTO events (id, name, starts, ends, venue, accepting, payment_instructions, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
         .run(id, name, starts, ends, venue, Number(accepting), payment, description);
     }
+    db.prepare('UPDATE events SET fee_label = ?, contact = ? WHERE id = ?').run(fee, contact, id);
     return json(res, 200, { id });
   }
   if (req.method === 'POST' && path === '/admin/teams' && event) {
@@ -374,33 +384,7 @@ async function admin(req, res, path, url) {
     if (req.method === 'POST' && !fileField && event &&
         db.prepare('SELECT 1 FROM registrations WHERE id = ? AND event_id = ?').get(id, event.id)) {
       const patch = await readJson(req, 16384);
-      const existing = db.prepare('SELECT * FROM operations WHERE id = ?').get(id);
-      const next = { ...existing, ...patch };
-      if (!['review', 'correction', 'rejected', 'approved'].includes(next.status) ||
-          typeof next.note !== 'string' || next.note.length > 2000 ||
-          typeof next.checked !== 'boolean' && ![0, 1].includes(next.checked) ||
-          typeof next.published !== 'boolean' && ![0, 1].includes(next.published)) {
-        return invalid(res, 'Revisa el estado y la nota de la solicitud.');
-      }
-      if (next.team_id !== null && (typeof next.team_id !== 'string' ||
-          !db.prepare('SELECT 1 FROM teams WHERE id = ? AND event_id = ?').get(next.team_id, event.id))) {
-        return invalid(res, 'Selecciona un equipo de este evento.');
-      }
-      if (next.status !== 'approved') {
-        Object.assign(next, { team_id: null, jersey: null, checked: 0, sprint: null, velocity: null, published: 0 });
-      }
-      if (next.team_id !== existing.team_id) Object.assign(next, { jersey: null, published: 0 });
-      if (next.published && !next.team_id) return invalid(res, 'Asigna un equipo antes de publicar.');
-      if (next.jersey !== null && (!next.team_id || !Number.isInteger(next.jersey) || next.jersey < 0 || next.jersey > 999)) {
-        return invalid(res, 'Usa un número de camiseta entre 0 y 999 para un jugador con equipo.');
-      }
-      if ([next.sprint, next.velocity].some(value => value !== null && !(typeof value === 'number' && Number.isFinite(value) && value > 0))) {
-        return invalid(res, 'Las mediciones deben ser números positivos.');
-      }
-      if (next.jersey !== null && db.prepare('SELECT 1 FROM operations WHERE team_id = ? AND jersey = ? AND id <> ?')
-          .get(next.team_id, next.jersey, id)) return invalid(res, 'Ese número ya está en uso en el equipo.');
-      db.prepare('UPDATE operations SET status = ?, note = ?, team_id = ?, jersey = ?, checked = ?, sprint = ?, velocity = ?, published = ? WHERE id = ?')
-        .run(next.status, next.note, next.team_id, next.jersey, Number(next.checked), next.sprint, next.velocity, Number(next.published), id);
+      if (updateOperation({ db, id, event, patch, res, invalid }) !== true) return;
       return json(res, 200, { ok: true });
     }
   }
@@ -408,6 +392,7 @@ async function admin(req, res, path, url) {
 }
 
 const assets = new Map([
+  ...['solicitudes', 'profundidad', 'operacion', 'publicacion'].map(name => ['/client/' + name + '.js', [readFileSync(new URL('./client/' + name + '.js', import.meta.url)), 'text/javascript']]),
   ['/registration.js', [registrationScript, 'text/javascript']],
   ['/operations.js', [operationsScript, 'text/javascript']],
   ['/operations.css', [readFileSync(new URL('./operations.css', import.meta.url)), 'text/css']],
@@ -435,6 +420,16 @@ createServer(async (req, res) => {
       return res.end(presentationPage());
     }
     const event = getEvent(url.searchParams.get('event'));
+    if (req.method === 'GET' && path === '/corregir') {
+      const code = url.searchParams.get('codigo')?.trim() ?? '';
+      const registration = db.prepare("SELECT r.event_id FROM registrations r JOIN operations o ON o.id=r.id WHERE r.id=? AND o.status='correction'").get(code);
+      if (!registration) {
+        res.statusCode = 404;
+        return html(res, 'Corrección no disponible', '<p>Verifica el código y el estado de la solicitud.</p><a href="/seguimiento">Consultar estado</a>');
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.end(registrationPage(getEvent(registration.event_id), false, code));
+    }
     if (req.method === 'GET' && path === '/seguimiento') {
       const code = url.searchParams.get('codigo')?.trim() ?? '';
       const validCode = /^CSI-[a-f0-9-]{36}$/.test(code);
@@ -451,7 +446,7 @@ createServer(async (req, res) => {
         '<p>Evento: ' + escape(result.event_name) + '</p><p><strong>Estado: ' +
         escape(statusNames[result.status] ?? 'En revisión') + '</strong></p>' +
         (result.status === 'correction' ?
-          '<p>Contacta a la organización para confirmar los documentos que necesitas corregir.</p>' : '') +
+          '<p>Contacta a la organización para confirmar los documentos que necesitas corregir.</p><a class="btn red" href="/corregir?codigo=' + encodeURIComponent(code) + '">Actualizar solicitud</a>' : '') +
         '</section>' :
         '<p class="notice warn">No se encontró una solicitud con ese código. Verifícalo e inténtalo nuevamente.</p>';
       return html(res, 'Seguimiento de solicitud',
@@ -469,10 +464,13 @@ createServer(async (req, res) => {
           '<div class="card public-empty">No hay ediciones públicas disponibles en este momento.</div>') + '</div>',
         '', { active: 'Eventos' });
     }
-    const eventRoute = path.match(/^\/eventos\/([a-f0-9-]{36})$/);
+    const eventRoute = path.match(/^\/eventos\/([a-zA-Z0-9-]+)$/);
     if (req.method === 'GET' && eventRoute) {
       const selectedEvent = getEvent(eventRoute[1]);
-      if (!selectedEvent) return html(res, 'Evento no encontrado', '<p>Consulta los eventos disponibles.</p><a href="/eventos">Volver a eventos</a>');
+      if (!selectedEvent) {
+        res.statusCode = 404;
+        return html(res, 'Evento no encontrado', '<p>Consulta los eventos disponibles.</p><a href="/eventos">Volver a eventos</a>');
+      }
       const isPublic = publicEvents().some(item => item.id === selectedEvent.id);
       if (!isPublic) return html(res, 'Evento no disponible', '<p>Este evento todavía no está publicado.</p><a href="/eventos">Ver otros eventos</a>');
       const content = '<section class="card pad"><span class="eyebrow">Canelo Scout Invitational</span>' +
@@ -501,7 +499,7 @@ createServer(async (req, res) => {
       return res.end(registrationPage(event));
     }
     if (req.method === 'GET' && path === '/prensa') {
-      if (url.searchParams.has('event') && !event) {
+      if (url.searchParams.get('event') && !event) {
         res.statusCode = 404;
         return html(res, 'Evento no encontrado', '<p>El enlace no corresponde a un evento disponible.</p><a href="/eventos">Ver eventos</a>');
       }
@@ -509,9 +507,8 @@ createServer(async (req, res) => {
       const playerId = url.searchParams.get('jugador');
       const query = url.searchParams.get('buscar')?.trim().toLowerCase() ?? '';
       const teamId = url.searchParams.get('equipo') ?? '';
-      const demo = !event && !listEvents().length;
-      const published = (demo ? demonstration().players : event ? roster(event.id) : listEvents().flatMap(item => roster(item.id))).filter(player => player.published && player.status === 'approved' &&
-        player.team && player.details.consent);
+      const published = (event ? roster(event.id) : listEvents().flatMap(item => roster(item.id))).filter(player => player.published && player.status === 'approved' &&
+        player.team && player.details.consent && player.payment_status === 'validated');
       const teams = new Map(published.map(player => [player.team_id, player.team]));
       const cards = published.filter(player => (!playerId || player.id === playerId) &&
         (!teamId || player.team_id === teamId) &&
@@ -528,7 +525,7 @@ createServer(async (req, res) => {
       return html(res, 'Media Center', `<section class="mediahero"><div class="wrap">
         <span class="badge">MEDIA CENTER · ACCESO PARA PRENSA</span><h1>Talento en el diamante</h1>
         <p>${escape(pressEvent.name)} · ${escape(pressEvent.venue)} · Rósters oficiales</p></div></section>
-        <section class="wrap ops-press">${demo ? '<p class="notice">Demostración con jugadores ficticios.</p>' : ''}<div class="head"><div><span class="eyebrow">Directorio de jugadores</span><h2>Perfiles publicados</h2></div>
+        <section class="wrap ops-press"><div class="head"><div><span class="eyebrow">Directorio de jugadores</span><h2>Perfiles publicados</h2></div>
         <form class="toolbar" action="/prensa"><select name="event" aria-label="Evento"><option value="">Todos los eventos</option>${listEvents().map(item =>
           `<option value="${item.id}" ${item.id === pressEvent.id ? 'selected' : ''}>${escape(item.name)}</option>`).join('')}</select>
         <input type="search" name="buscar" value="${escape(query)}" placeholder="Buscar jugador o posición…" aria-label="Buscar jugador o posición">
