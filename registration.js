@@ -40,7 +40,7 @@
     $('[name="guardianPhone"]').required = requiresGuardian;
   }
 
-  function showStep(number) {
+  function showStep(number, scroll = true) {
     currentStep = Math.min(4, Math.max(1, number));
     $$('.step').forEach(step => step.classList.toggle('active', Number(step.dataset.s) === currentStep));
     $$('.steps [data-s]').forEach(button => {
@@ -51,7 +51,7 @@
     $('#prev').style.display = currentStep === 1 ? 'none' : '';
     $('#next').style.display = currentStep === 4 ? 'none' : '';
     $('#submit').style.display = currentStep === 4 ? '' : 'none';
-    $('#formarea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (scroll) $('#formarea').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function validateStep(number) {
@@ -156,5 +156,5 @@
 
   if (preview) $('#submit').textContent = 'Finalizar vista previa';
   refreshGuardian();
-  showStep(1);
+  showStep(1, false);
 })();
