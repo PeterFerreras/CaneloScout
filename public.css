@@ -52,3 +52,15 @@
   .public-main .formactions .btn{min-height:44px}
   .event-list{grid-template-columns:1fr}
 }
+
+/* Media Center público: los controles no heredan estilos del back office. */
+.public-main .ops-press{padding-top:30px;padding-bottom:55px}
+.public-main .ops-press .toolbar{max-width:850px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.public-main .ops-press .toolbar select,.public-main .ops-press .toolbar input{width:auto;flex:1 1 180px;min-height:42px}
+.public-main .ops-press .toolbar button{border:0;border-radius:9px;background:var(--n);color:#fff;font-weight:800;padding:11px 16px;min-height:42px}
+.public-main .mediahero{margin-bottom:8px}
+.public-main .mediahero h1{font:clamp(36px,5vw,62px) Anton;text-transform:uppercase}
+.public-main .mediagrid .pcard{padding:0}
+.public-main .pcard .pbody a{color:var(--n);text-decoration:none}
+.public-main .pcard .pbody a:hover{text-decoration:underline}
+@media(max-width:620px){.public-main .ops-press .toolbar select,.public-main .ops-press .toolbar input,.public-main .ops-press .toolbar button{width:100%;flex-basis:100%}}
