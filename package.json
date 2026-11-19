@@ -1,0 +1,6 @@
+{
+  "name": "canelo-scout",
+  "private": true,
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": { "qrcode": "1.5.4" }
+}

@@ -17,6 +17,39 @@ Para continuar desde otro equipo, consulta [el contexto y las limitaciones](docs
 
 ## Ejecutar localmente
 
+### Aplicación con varios eventos
+
+En PowerShell, desde la raíz del proyecto, con Node.js 22.13 o posterior:
+
+```powershell
+npm ci
+$env:ADMIN_PASSWORD = Read-Host 'Contraseña del administrador (mínimo 12 caracteres)' -MaskInput
+npm start
+```
+
+Abre el [panel de eventos](http://127.0.0.1:8091/admin/) e inicia sesión con
+`admin` y la contraseña que configuraste. Crea un evento con sus fechas, sede e
+instrucciones de pago. Marca **Habilitar formulario público** para obtener un
+enlace y un QR descargable. La [página pública](http://127.0.0.1:8091/) lista los
+eventos disponibles.
+En el panel, **Ver formulario de inscripción** abre una vista previa incluso
+antes de habilitar un evento. El enlace público aparece cuando abres las
+inscripciones.
+
+Cada evento tiene sus propias solicitudes, equipos, check-in, mediciones y
+perfiles de prensa. El administrador revisa los comprobantes manualmente y
+decide qué perfiles deportivos publicar. Puedes cerrar las inscripciones desde
+**Configuración** sin perder las solicitudes recibidas.
+
+Los datos y archivos se guardan en `data/registrations.sqlite`. Por defecto el
+servidor escucha en `127.0.0.1:8091`. Antes de distribuir el QR, configura
+`PUBLIC_ORIGIN` con la dirección HTTPS accesible desde los teléfonos. Ese
+dominio debe dirigir al servidor Node, mediante un proxy HTTPS o el proveedor
+de alojamiento. Usa `BIND_HOST` y `PORT` si el entorno de alojamiento lo requiere.
+Una dirección local sirve para pruebas en el mismo equipo.
+
+### Maqueta de presentación
+
 El MVP es un sitio estático. Puede abrirse `dist/index.html` directamente o servirse con cualquier servidor HTTP:
 
 ```powershell
