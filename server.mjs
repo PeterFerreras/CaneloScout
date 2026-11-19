@@ -435,6 +435,33 @@ createServer(async (req, res) => {
       return res.end(presentationPage());
     }
     const event = getEvent(url.searchParams.get('event'));
+    if (req.method === 'GET' && path === '/seguimiento') {
+      const code = url.searchParams.get('codigo')?.trim() ?? '';
+      const validCode = /^CSI-[a-f0-9-]{36}$/.test(code);
+      const result = validCode ? db.prepare(
+        'SELECT o.status, e.name AS event_name FROM registrations r ' +
+        'JOIN operations o ON o.id = r.id JOIN events e ON e.id = r.event_id WHERE r.id = ?'
+      ).get(code) : null;
+      const statusNames = {
+        review: 'En revisión', correction: 'Requiere corrección',
+        rejected: 'No elegible', approved: 'Aprobada'
+      };
+      const outcome = !code ? '' : result ?
+        '<section class="card pad"><h2>Estado de la solicitud</h2>' +
+        '<p>Evento: ' + escape(result.event_name) + '</p><p><strong>Estado: ' +
+        escape(statusNames[result.status] ?? 'En revisión') + '</strong></p>' +
+        (result.status === 'correction' ?
+          '<p>Contacta a la organización para confirmar los documentos que necesitas corregir.</p>' : '') +
+        '</section>' :
+        '<p class="notice warn">No se encontró una solicitud con ese código. Verifícalo e inténtalo nuevamente.</p>';
+      return html(res, 'Seguimiento de solicitud',
+        '<section class="card pad"><p>Consulta el estado de tu inscripción usando el código recibido al finalizar el formulario.</p>' +
+        '<form action="/seguimiento" method="GET"><label for="request-code">Código de solicitud</label>' +
+        '<input id="request-code" name="codigo" value="' + escape(code) +
+        '" placeholder="CSI-..." required style="max-width:500px;display:block;margin:10px 0">' +
+        '<button class="btn red">Consultar estado</button></form></section>' + outcome,
+        '', { active: 'Seguimiento' });
+    }
     if (req.method === 'GET' && path === '/eventos') {
       const available = publicEvents();
       return html(res, 'Eventos disponibles', '<div class="selection-grid"><p>Selecciona una edición para consultar sus detalles o inscribirte.</p>' +
