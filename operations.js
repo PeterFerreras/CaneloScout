@@ -102,7 +102,7 @@ function renderScreen(data) {
 async function load() {
   if (!eventId && view === 'configuracion') {
     const events = await api('events');
-    mount.innerHTML = '<div class="dash ops-dash">' + controlMenu() +
+    mount.innerHTML = '<div class="dash ops-dash admin-shell">' + controlMenu() +
       '<section><div class="apphead"><div><span class="eyebrow">Organización</span><h2 class="display">Eventos y configuración</h2><p>Gestiona tus ediciones y abre sus inscripciones.</p></div></div>' +
       '<div class="ops-home"><section><h3>Mis eventos</h3>' + (events.map(event =>
       `<article class="card"><h3><a href="/admin/?event=${event.id}&vista=${encodeURIComponent(view)}">${escape(event.name)}</a></h3>
@@ -119,8 +119,8 @@ async function load() {
   const filter = `<label>Evento<select id="event-filter"><option value="">Todos los eventos</option>${events.map(event =>
     `<option value="${event.id}" ${selected(eventId, event.id)}>${escape(event.name)}</option>`).join('')}</select></label>`;
   const next = nextScreen[view];
-  const sidebar = ['solicitudes', 'configuracion'].includes(view);
-  mount.innerHTML = `<div class="${sidebar ? 'dash ops-dash' : 'screen-wide'}">${sidebar ? controlMenu() : ''}<section><div class="apphead"><div><span class="eyebrow">${escape(data.event.name)}</span>
+  // Un único layout para todas las vistas: menú lateral fijo y contenido fluido.
+  mount.innerHTML = `<div class="dash ops-dash admin-shell">${controlMenu()}<section><div class="apphead"><div><span class="eyebrow">${escape(data.event.name)}</span>
     <h2 class="display">${headings[view] ?? headings.configuracion}</h2></div>
     ${next ? `<a class="btn red" href="/admin/${eventQuery}&vista=${next[0]}">${next[1]}</a>` : ''}
     </div>${data.demo ? '<p class="notice">Demostración con jugadores y equipos ficticios. Puedes probar los cambios durante esta visita.</p>' : filter}<div class="${view === 'configuracion' ? 'event-settings' : ''}">${renderScreen(data)}</div></section></div>`;
