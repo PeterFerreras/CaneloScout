@@ -1,0 +1,54 @@
+
+/* Portal público de CaneloScout: solo estilos de presentación y registro. */
+.public-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.public-nav a{color:#d7e1f2;text-decoration:none;font-weight:700;padding:10px 12px;border-radius:8px}
+.public-nav a[aria-current="page"],.public-nav a:hover{background:#fff;color:var(--n)}
+.public-nav .nav-cta{background:var(--r);color:#fff}
+.public-nav .nav-cta:hover{background:#a80c29;color:#fff}
+.public-brand{text-decoration:none;color:#fff}
+.public-brand:hover{color:#fff}
+.public-main .btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.public-main .hero .actions{margin-bottom:24px}
+.public-main .hero .ticket{max-width:460px;margin:auto}
+.public-main .event-catalog{padding-top:60px;padding-bottom:72px}
+.event-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:18px}
+.event-card{padding:24px;display:flex;flex-direction:column;gap:10px}
+.event-card h3{font:29px/1.1 Anton;margin:8px 0 0}
+.event-card p{color:var(--m);margin:0}
+.event-card .actions{margin-top:auto;padding-top:12px}
+.event-card .event-meta{font-weight:700;color:var(--n)}
+.public-main .formgrid{align-items:start}
+.public-main #formarea{scroll-margin-top:95px}
+.public-main .field input:focus-visible,.public-main select:focus-visible,.public-main button:focus-visible,
+.public-nav a:focus-visible{outline:3px solid var(--y);outline-offset:2px}
+.public-main .steps button{border:1px solid var(--l);background:#fff}
+.public-main .steps button.active{background:var(--n);border-color:var(--n);color:#fff}
+.public-main .steps button[aria-current="step"]{box-shadow:0 0 0 2px #efc34a}
+.public-main .receipt{white-space:pre-wrap}
+.public-main #guardian .fields input{width:100%}
+.public-main .card.success{max-width:720px;margin:0 auto}
+.public-main #age{font-size:12px;font-weight:700;color:var(--b)}
+.public-main .public-empty{text-align:center;padding:40px 22px}
+.public-footer{background:#06142e;color:#aebbd2;padding:32px 0;margin-top:auto}
+.public-footer strong{color:#fff}
+.public-main .selection-grid{min-height:50vh}
+@media(max-width:980px){
+  .nav.public-header{flex-wrap:wrap;justify-content:space-between}
+  .public-nav{width:100%;justify-content:flex-start}
+  .public-main .hero-grid{gap:24px;min-height:500px}
+}
+@media(max-width:620px){
+  .public-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  .public-nav a{text-align:center;padding:9px 5px;font-size:12px}
+  .public-main .hero-grid{padding:44px 0}
+  .public-main .hero h1{font-size:clamp(38px,10vw,62px)}
+  .public-main .section{padding:42px 0}
+  .public-main .steps{gap:6px}
+  .public-main .steps button{font-size:11px;padding:9px 7px}
+  .public-main .app{padding:26px 14px 40px}
+  .public-main .card.pad{padding:18px}
+  .public-main .aside{padding:18px}
+  .public-main .formactions{gap:10px}
+  .public-main .formactions .btn{min-height:44px}
+  .event-list{grid-template-columns:1fr}
+}
