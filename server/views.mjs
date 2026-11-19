@@ -20,20 +20,9 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
           (active === label ? ' aria-current="page"' : '') +
           (label === 'Inscribirme' ? ' class="nav-cta"' : '') + '>' + label + '</a>').join('') + '</nav>';
     }
-    const panel = '/admin/' + query;
-    const sep = query ? '&' : '?';
-    const links = [
-      ['Eventos', '/admin/'],
-      ['Solicitudes', panel + sep + 'vista=solicitudes'],
-      ['Profundidad', panel + sep + 'vista=rosters'],
-      ['Operación', panel + sep + 'vista=operacion'],
-      ['Publicación', panel + sep + 'vista=prensa'],
-      ['Ver portal ↗', '/']
-    ];
-    return '<nav class="links ops-links" aria-label="Navegación de administración">' +
-      links.map(([label, href]) => '<a href="' + escape(href) + '"' +
-        ((label === active || label === 'Eventos' && active === 'Configuración') ? ' aria-current="page"' : '') +
-        '>' + label + '</a>').join('') + '</nav>';
+    // El back office utiliza su propio menú lateral; el encabezado solo enlaza al portal público.
+    return '<nav class="admin-top-nav" aria-label="Acceso al portal público">' +
+      '<a href="/" class="admin-portal-link">Ver portal público ↗</a></nav>';
   }
   
   function documentHead(title, privateView = false) {
