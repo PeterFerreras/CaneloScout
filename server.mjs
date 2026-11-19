@@ -55,6 +55,9 @@ if (!db.prepare('PRAGMA table_info(registrations)').all().some(column => column.
 if (!db.prepare('PRAGMA table_info(events)').all().some(column => column.name === 'payment_instructions')) {
   db.exec("ALTER TABLE events ADD COLUMN payment_instructions TEXT NOT NULL DEFAULT ''");
 }
+if (!db.prepare('PRAGMA table_info(events)').all().some(column => column.name === 'description')) {
+  db.exec("ALTER TABLE events ADD COLUMN description TEXT NOT NULL DEFAULT ''");
+}
 const legacyDates = db.prepare("SELECT DISTINCT json_extract(details, '$.eventDate') AS date FROM registrations WHERE event_id IS NULL").all();
 for (const { date } of legacyDates) {
   const id = 'legacy-' + date;
@@ -326,6 +329,9 @@ function registrationPage(event, preview = false) {
     .replace('<h1>CANELO SCOUT INVITATIONAL</h1>', '<h1>' + escape(event.name) + '</h1>')
     .replace('7 y 8 de noviembre de 2026 · República Dominicana', escape(dateLabel + ' · ' + event.venue))
     .replace('Asistencia 7 y 8 de noviembre', 'Disponibilidad para el evento')
+    .replace('<div class="notice">Completa este formulario', event.description ?
+      '<div class="notice">' + escape(event.description) + '</div><div class="notice">Completa este formulario' :
+      '<div class="notice">Completa este formulario')
     .replace('US$100 o RD$6,200', 'Información del evento')
     .replace(/<div class="pay">.*?<\/div>/,
       '<div class="pay" style="white-space:pre-wrap">' +
@@ -407,6 +413,11 @@ async function admin(req, res, path, url) {
     if (req.method === 'GET') return signedIn ? redirect(res, next) : loginPage(res, '', next);
     if (req.method === 'POST') return login(req, res);
   }
+  if (req.method === 'POST' && path !== '/admin/login' &&
+      req.headers.origin && req.headers.origin !== publicOrigin.origin &&
+      req.headers.origin !== 'http://' + req.headers.host) {
+    return json(res, 403, { error: 'Origen no autorizado.' });
+  }
   if (!signedIn) {
     sessions.delete(token);
     if (req.method === 'GET' && ['/admin/', '/admin/preview'].includes(path)) {
@@ -459,8 +470,9 @@ async function admin(req, res, path, url) {
     const name = clean(input?.name);
     const venue = clean(input?.venue);
     const payment = clean(input?.payment_instructions);
+    const description = clean(input?.description);
     if (!name || name.length > 120 || !venue || venue.length > 160 || !validDate(starts ?? '') ||
-        !validDate(ends ?? '') || ends < starts || typeof accepting !== 'boolean' || payment.length > 2000) {
+        !validDate(ends ?? '') || ends < starts || typeof accepting !== 'boolean' || payment.length > 2000 || description.length > 1200) {
       return invalid(res, 'Completa el nombre, la sede y el rango de fechas.');
     }
     if (url.searchParams.has('event') && !event) return json(res, 404, { error: 'Evento no encontrado.' });
@@ -469,10 +481,11 @@ async function admin(req, res, path, url) {
       if (event.starts !== starts && db.prepare('SELECT 1 FROM registrations WHERE event_id = ? LIMIT 1').get(id)) {
         return invalid(res, 'La fecha de inicio ya se usó para calcular la edad de las inscripciones recibidas.');
       }
-      db.prepare('UPDATE events SET name = ?, starts = ?, ends = ?, venue = ?, accepting = ?, payment_instructions = ? WHERE id = ?')
-        .run(name, starts, ends, venue, Number(accepting), payment, id);
+      db.prepare('UPDATE events SET name = ?, starts = ?, ends = ?, venue = ?, accepting = ?, payment_instructions = ?, description = ? WHERE id = ?')
+        .run(name, starts, ends, venue, Number(accepting), payment, description, id);
     } else {
-      db.prepare('INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, name, starts, ends, venue, Number(accepting), payment);
+      db.prepare('INSERT INTO events (id, name, starts, ends, venue, accepting, payment_instructions, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(id, name, starts, ends, venue, Number(accepting), payment, description);
     }
     return json(res, 200, { id });
   }
@@ -596,6 +609,10 @@ createServer(async (req, res) => {
       return res.end(registrationPage(event));
     }
     if (req.method === 'GET' && path === '/prensa') {
+      if (url.searchParams.has('event') && !event) {
+        res.statusCode = 404;
+        return html(res, 'Evento no encontrado', '<p>El enlace no corresponde a un evento disponible.</p><a href="/eventos">Ver eventos</a>');
+      }
       const pressEvent = event ?? {id:'',name:'Todos los eventos',venue:'Canelo Scout'};
       const playerId = url.searchParams.get('jugador');
       const query = url.searchParams.get('buscar')?.trim().toLowerCase() ?? '';
