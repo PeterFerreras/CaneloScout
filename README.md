@@ -10,6 +10,7 @@ CaneloScout evoluciona a partir de la maqueta visual conservada en `dist/index.h
 - `/eventos/:id`: ficha informativa del evento.
 - `/registro?event=:id`: inscripción real al evento abierto (4 pasos).
 - `/prensa?event=:id`: perfiles autorizados y publicados en Media Center.
+- `/seguimiento?codigo=:id`: consulta pública del estado, mediante el código no predecible de la solicitud.
 
 **Back office** (autenticación obligatoria):
 - `/admin/`: lista, creación y configuración de ediciones.
