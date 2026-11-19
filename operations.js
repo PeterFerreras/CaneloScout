@@ -4,7 +4,7 @@ const params = new URLSearchParams(location.search);
 const eventId = params.get('event');
 const view = params.get('vista') || 'configuracion';
 const labels = { review: 'Por revisar', correction: 'Requiere corrección', rejected: 'No elegible', approved: 'Aprobado' };
-const tabs = { configuracion: 'Configuración', solicitudes: 'Solicitudes', rosters: 'Rósters', operacion: 'Operación', prensa: 'Prensa' };
+const tabs = { configuracion: 'Configuración', solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', prensa: 'Publicación' };
 const headings = { configuracion: 'Configuración del evento', solicitudes: 'Solicitudes y validación',
   rosters: 'Profundidad por posición', operacion: 'Rósters del Invitational', prensa: 'Publicación para prensa' };
 const nextScreen = { solicitudes: ['rosters', 'Armar equipos'], rosters: ['operacion', 'Continuar al evento'],
@@ -31,6 +31,7 @@ function eventForm(event = {}) {
     <h3>Datos del evento</h3>
     <label>Nombre del evento<input name="name" required maxlength="120" value="${escape(event.name)}"></label>
     <label>Sede<input name="venue" required maxlength="160" value="${escape(event.venue)}"></label>
+    <label>Descripción pública<textarea name="description" maxlength="1200" placeholder="Presenta el evento, objetivos y requisitos principales.">${escape(event.description)}</textarea></label>
     <div class="row"><label>Fecha de inicio<input type="date" name="starts" required value="${escape(event.starts)}"></label>
     <label>Fecha de cierre<input type="date" name="ends" required value="${escape(event.ends)}"></label></div>
     <label>Instrucciones de pago<textarea name="payment_instructions" maxlength="2000">${escape(event.payment_instructions)}</textarea></label>
