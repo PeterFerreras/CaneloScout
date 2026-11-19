@@ -145,6 +145,8 @@
       $('#formarea').style.display = 'none';
       $('#success').style.display = 'block';
       $('#code').textContent = result.id;
+      const tracking = $('#tracking-link');
+      if (tracking) tracking.href = '/seguimiento?codigo=' + encodeURIComponent(result.id);
       $('#success').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
       notice(error.message || 'No se pudo enviar la solicitud. Intenta nuevamente.');
