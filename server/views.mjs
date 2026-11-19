@@ -10,7 +10,8 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
       const links = [
         ['Inicio', '/'],
         ['Eventos', '/eventos'],
-        ['Media Center', '/prensa' + query]
+        ['Media Center', '/prensa' + query],
+      ['Seguimiento', '/seguimiento']
       ];
       if (eventId && getEvent(eventId)?.accepting) links.push(['Inscribirme', '/registro' + query]);
       else if (listEvents().some(event => event.accepting)) links.push(['Inscribirme', '/eventos']);
@@ -88,6 +89,8 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
       .replace('La descripción debe incluir el nombre del jugador. Asistencia: <strong>+1 914-490-9560</strong>.',
         'Verifica los datos de pago con la organización antes de realizar una transferencia.')
       .replace('Esta maqueta conserva los datos solo en este navegador.', 'Tu solicitud fue recibida y se encuentra en revisión.')
+    .replace('<div id="code" class="code"></div>',
+      '<div id="code" class="code"></div><p><a id="tracking-link" class="btn light" href="/seguimiento">Consultar estado de solicitud</a></p>')
       .replace('<button class="btn" onclick="go(\'admin\')">Ver en solicitudes</button>',
         '<a class="btn" href="/">Volver al inicio</a>')
       .replace('REGISTRO ABIERTO', preview ? 'VISTA PREVIA' : 'REGISTRO ABIERTO');
