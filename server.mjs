@@ -399,6 +399,7 @@ const assets = new Map([
   ['/operations.css', [readFileSync(new URL('./operations.css', import.meta.url)), 'text/css']],
   ['/public.css', [readFileSync(new URL('./public.css', import.meta.url)), 'text/css']],
   ['/shell.css', [readFileSync(new URL('./shell.css', import.meta.url)), 'text/css']],
+  ['/i18n.js', [readFileSync(new URL('./i18n.js', import.meta.url)), 'text/javascript']],
   ['/login.css', [readFileSync(new URL('./login.css', import.meta.url)), 'text/css']],
   ['/login.js', [readFileSync(new URL('./login.js', import.meta.url)), 'text/javascript']]
 ]);
