@@ -7,7 +7,7 @@ export function renderLoginPage({ root, escape, error = '', next = '/admin/' }) 
     .replace('<title>Canelo Scout Invitational · MVP</title>',
       '<title>Acceso al back office | Canelo Scout</title>');
 
-  return `${head}<link rel="stylesheet" href="/login.css"></head>
+  return `${head}<link rel="stylesheet" href="/login.css"><script src="/i18n.js" defer></script></head>
 <body class="login-body">
   <div class="stripe"></div>
   <header class="login-header">
