@@ -118,10 +118,64 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
     await request(playerPath(second),{status:'approved',team_id:blue.id});
     await request(playerPath(second),{jersey:12},422);
     await request(playerPath(player),{published:true});
+    // Showcase phase must be completed before the game phase.
+    await request('/admin/tryouts?event='+event,undefined,200);
+    await request('/admin/tryouts/sessions?event='+event,
+      {name:'Juego temprano',date:'2027-01-12',kind:'game',note:''},422);
+    const {id:showcase}=await request('/admin/tryouts/sessions?event='+event,
+      {name:'Tryouts Día 1',date:'2027-01-12',kind:'showcase',note:'Pruebas y mediciones'},201);
+    const scorecard=await request('/admin/tryouts?event='+event+'&session='+showcase);
+    assert.equal(scorecard.phase,'showcase');
+    assert.equal(scorecard.drills.length>=10,true);
+    assert.equal(scorecard.players.some(p=>p.id===player),true);
+    const pitch=scorecard.drills.find(d=>d.name==='Velocidad de recta');
+    const outfield=scorecard.drills.find(d=>d.name==='Tiro del jardín derecho al home');
+    assert.ok(pitch && outfield);
+    const attempt=(drillId,attemptNo,value,note='') =>
+      request('/admin/tryouts/sessions/'+showcase+'/attempts?event='+event,
+        {playerId:player,drillId,attemptNo,value,note});
+    await attempt(outfield.id,1,89,'Tiro no autorizado por posición'),422;
+    await attempt(pitch.id,1,83,'Velocidad de recta — prueba interna');
+    await attempt(pitch.id,2,91);
+    await attempt(pitch.id,2,92);
+    await attempt(pitch.id,3,220, 'Fuera del rango'),422;
+    const privateProfile=await request('/api/showcase?event='+event+'&player='+player);
+    assert.equal(privateProfile.sessions.length,0,'Draft tryout statistics must not be public');
+    await request('/admin/tryouts/sessions?event='+event,
+      {name:'Juego antes del cierre',date:'2027-01-13',kind:'game',note:''},422);
+    await request('/admin/tryouts/sessions/'+showcase+'/status?event='+event,
+      {status:'closed',published:true});
+    await request('/admin/tryouts/sessions/'+showcase+'/attempts?event='+event,
+      {playerId:player,drillId:pitch.id,attemptNo:3,value:93},422);
+    const scoutAfterTryout=await request('/api/showcase?event='+event+'&player='+player);
+    assert.equal(scoutAfterTryout.sessions[0].kind,'showcase');
+    assert.equal(scoutAfterTryout.sessions[0].drills.find(d=>d.name==='Velocidad de recta').best,92);
+    assert.equal(scoutAfterTryout.sessions[0].drills.find(d=>d.name==='Velocidad de recta').attempts.length,2);
+    assert.doesNotMatch(JSON.stringify(scoutAfterTryout), /Tiro no autorizado|prueba interna|test@example.com|payref/);
+    const {id:game}=await request('/admin/tryouts/sessions?event='+event,
+      {name:'Juego 1',date:'2027-01-13',kind:'game',note:'Scrimmage'},201);
+    await request('/admin/tryouts/sessions?event='+event,
+      {name:'Tryout tardío',date:'2027-01-14',kind:'showcase',note:''},422);
+    const gameData=await request('/admin/tryouts?event='+event+'&session='+game);
+    assert.equal(gameData.phase,'game');
+    assert.equal(gameData.drills.some(d=>d.name==='Ponches (K)'),true);
+    const strikeouts=gameData.drills.find(d=>d.name==='Ponches (K)');
+    await request('/admin/tryouts/sessions/'+game+'/attempts?event='+event,
+      {playerId:player,drillId:strikeouts.id,attemptNo:1,value:6,note:'6 ponches'});
+    await request('/admin/tryouts/sessions/'+game+'/status?event='+event,
+      {status:'open',published:true});
+    const scout=await request('/api/showcase?event='+event+'&player='+player);
+    assert.deepEqual(scout.sessions.map(s=>s.kind),['showcase','game']);
+    assert.equal(scout.sessions[1].drills.find(d=>d.name==='Ponches (K)').best,6);
+    const profileHtml=await request('/prensa?event='+event+'&jugador='+player);
+    assert.match(profileHtml,/showcase-profile|showcase\.js/);
+    assert.match(await request('/showcase.js'),/scout-highlights/);
+    assert.match(await request('/client/tryouts.js'),/Intento/);
     const press=await request('/prensa?event='+event);
     assert.match(press,/Jugador de prueba/); assert.doesNotMatch(press,/test@example.com|0000000000|TEST/);
     await request(playerPath(player),{team_id:red.id});
     data=await request('/admin/event?event='+event);
+    await request('/api/showcase?event='+event+'&player='+player,undefined,404);
     const changed=data.players.find(p=>p.id===player);
     assert.equal(changed.jersey,null); assert.equal(changed.checked,0); assert.equal(changed.sprint,null); assert.equal(changed.published,0);
     await request(playerPath(player),{status:'correction',note:''},422);
