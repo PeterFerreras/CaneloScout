@@ -216,7 +216,7 @@ export function createTryouts(db) {
     const name=trimmed(input?.name,110), group=input?.group,position=input?.position??'all';
     const unit=input?.unit,count=input?.attempts,best=input?.best;
     if (!name || !GROUPS.has(group) || !UNITS.has(unit) ||
-      !Number.isInteger(count) || count<1 || count>12 || !['min','max','avg'].includes(best) ||
+      !Number.isInteger(count) || count<1 || count>30 || !['min','max','avg'].includes(best) ||
       (position!=='all' && (!POSITION_GROUPS[group] || !POSITION_GROUPS[group].includes(position)))) {
       error('Revisa nombre, grupo, posición, unidad e intentos permitidos.');
     }
@@ -238,7 +238,7 @@ export function createTryouts(db) {
     writable(eventId,sessionId);
     const drill=getDrill(sessionId,drillId);
     if (!input || typeof input.enabled!=='boolean' ||
-        !Number.isInteger(input.attempts)||input.attempts<1||input.attempts>12 ||
+        !Number.isInteger(input.attempts)||input.attempts<1||input.attempts>30 ||
         !['min','max','avg'].includes(input.best) ||
         Object.keys(input).some(k=>!['enabled','attempts','best','minValue','maxValue'].includes(k))) {
       error('Revisa el estado, número de intentos y método de cálculo.');
