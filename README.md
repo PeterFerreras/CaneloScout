@@ -38,12 +38,21 @@ El primer paso es crear un evento en el panel, con nombre, descripción pública
 
 Para compartir enlaces desde dispositivos externos, configura `PUBLIC_ORIGIN` con la URL HTTPS pública del servidor, no con `127.0.0.1`. Usa `BIND_HOST` y `PORT` según el alojamiento.
 
+## Idiomas (ES / EN)
+
+El portal público, el inicio de sesión y el back office incorporan un selector **ES / EN** en sus encabezados. La opción se guarda mediante la cookie `canelo_lang` para conservar el idioma al navegar; por defecto se utiliza español. También se puede abrir una pantalla con `?lang=en` o `?lang=es` para seleccionar idioma sin borrar los demás parámetros de la URL.
+
+Las etiquetas, campos, instrucciones y mensajes de la interfaz se traducen desde `i18n.js`, incluidos los componentes que se insertan de forma dinámica. En los formularios, la traducción visual de las opciones no altera los valores enviados al servidor. El catálogo se puede ampliar sin duplicar las pantallas.
+
+**Alcance:** esta primera implementación internacionaliza la interfaz. Los datos libres que escriba un organizador —nombre, descripción, sede y condiciones de un evento, noticias y contenido CMS futuro— **no se traducen automáticamente**. Para publicar esos textos completos en ambos idiomas se deben administrar sus versiones ES y EN; también siguen pendientes la localización de metadatos SEO y la comprobación visual integral de todas las cadenas.
+
 ## Organización del código
 
 - `server.mjs`: rutas, seguridad, datos y acciones del servidor Node.js.
 - `server/views.mjs`: plantillas de salida y layouts independientes.
 - `registration.js`: validación, pasos, carga de archivos y envío del registro público.
 - `public.css`: adaptación visual del portal público y Media Center.
+- `i18n.js`: selector persistente ES / EN y diccionario centralizado de textos de interfaz.
 - `operations.js` y `operations.css`: controlador y estilos de la interfaz privada.
 - `client/solicitudes.js`, `profundidad.js`, `operacion.js` y `publicacion.js`: pantallas independientes que conservan la estructura visual de la maqueta.
 - `server/workflow.mjs`: reglas de revisión, pago, asignación, mediciones y publicación.
