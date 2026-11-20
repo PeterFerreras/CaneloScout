@@ -30,8 +30,8 @@ export function render(data,{escape,eventId,params}) {
     <div class="try-form-grid">
       <label>Nombre<input name="name" maxlength="100" required placeholder="Ej. Showcase Día 1"></label>
       <label>Fecha<input name="date" type="date" required value="${new Date().toISOString().slice(0,10)}"></label>
-      <label>Tipo<select name="kind"><option value="showcase">Showcase · Pruebas físicas y de campo</option>
-        <option value="game" ${canCreateGame?"":"disabled"}>Juego · Estadísticas de partido ${canCreateGame?"":"(termina primero los tryouts)"}</option></select></label>
+      <label>Tipo<select name="kind"><option value="showcase" ${phase==='game'?'disabled':'selected'}>Showcase · Pruebas físicas y de campo</option>
+        <option value="game" ${canCreateGame?'':'disabled'} ${phase==='game'?'selected':''}>Juego · Estadísticas de partido ${canCreateGame?'':'(termina primero los tryouts)'}</option></select></label>
       <label>Nota interna<input name="note" maxlength="500" placeholder="Observaciones de la jornada"></label>
     </div><button class="btn red">Crear sesión</button></form>`;
   const phaseRail = `<nav class="try-phase-rail" aria-label="Orden del showcase">
