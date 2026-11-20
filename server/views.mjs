@@ -37,7 +37,7 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
       .replace('<title>Canelo Scout Invitational · MVP</title>',
         '<title>' + escape(title) + ' | Canelo Scout</title>') +
       '<link rel="stylesheet" href="' + (privateView ? '/operations.css' : '/public.css') +
-      '"><link rel="stylesheet" href="/shell.css"></head>';
+      '"><link rel="stylesheet" href="/shell.css"><script src="/i18n.js" defer></script></head>';
   }
   
   function header(eventId = '', active = 'Inicio', privateView = false) {
