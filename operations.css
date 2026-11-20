@@ -261,3 +261,55 @@ header .nav{flex-wrap:wrap}
 .workspace .publish-heading{align-items:flex-start;flex-direction:column}
 .workspace .admin-content .apphead{flex-wrap:wrap}
 }
+
+
+/* Administración del sitio: editor bilingüe, borradores y publicación */
+.workspace .site-settings{display:grid;gap:20px}
+.workspace .site-settings .card{margin:0}
+.workspace .site-settings-overview{display:flex;align-items:center;justify-content:space-between;gap:24px;background:linear-gradient(110deg,#fff 55%,#edf4fb 100%);border-left:4px solid var(--r)}
+.workspace .site-settings-overview h3{font:clamp(28px,2.6vw,38px)/1.12 Anton,Impact,sans-serif;text-transform:uppercase;color:var(--n);margin:8px 0}
+.workspace .site-settings-overview p{font-size:12px;color:var(--m);max-width:650px;margin:0}
+.workspace .site-settings-status{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px}
+.workspace .site-settings-status small{font-size:11px;color:var(--m)}
+.workspace .site-draft-state{background:#fff0bf;color:#775300}
+.workspace .site-settings-links{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.workspace .site-settings-form{display:grid;gap:20px}
+.workspace .site-settings-panel{padding:26px}
+.workspace .site-settings-heading{margin-bottom:22px}
+.workspace .site-settings-heading h3{font:27px Anton,Impact,sans-serif;color:var(--n);text-transform:uppercase;margin:0 0 7px}
+.workspace .site-settings-heading p{color:var(--m);font-size:12px;margin:0}
+.workspace .site-settings-languages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.workspace .site-language-column{min-width:0;border:1px solid #dbe3ef;border-radius:12px;background:#fbfcfe;padding:18px}
+.workspace .site-language-column h4{display:flex;align-items:center;gap:9px;font-weight:900;margin:0 0 18px;color:var(--n);font-size:14px}
+.workspace .site-language-code{display:inline-grid;place-items:center;background:var(--n);color:#fff;width:34px;height:28px;border-radius:7px;font-size:11px}
+.workspace .site-language-column label,.workspace .site-settings-contact label{display:block;font-size:12px;font-weight:800;color:#30425d;margin:0 0 16px}
+.workspace .site-language-column input,.workspace .site-language-column textarea,
+.workspace .site-settings-contact input{border:1px solid #c2cedf;border-radius:8px;width:100%;margin-top:6px;padding:10px 12px;background:#fff;color:var(--i);font-size:13px}
+.workspace .site-language-column textarea{min-height:88px;resize:vertical}
+.workspace .site-language-column input:focus,.workspace .site-language-column textarea:focus,
+.workspace .site-settings-contact input:focus{outline:2px solid #174e99;border-color:var(--b)}
+.workspace .site-settings-contact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:22px}
+.workspace .site-settings-contact .site-image-input{grid-column:1/-1}
+.workspace .site-image-preview{display:flex;justify-content:flex-start;border-radius:12px;border:1px solid #dbe3ef;background:#f7f9fc;padding:10px;max-width:550px}
+.workspace .site-image-preview img{width:100%;max-height:240px;object-fit:cover;border-radius:8px}
+.workspace .site-image-empty{padding:16px;border:1px dashed #c2cedf;border-radius:10px;background:#f8fafc;font-size:12px;color:var(--m)}
+.workspace .site-settings-savebar{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;background:#fff;border:1px solid #dce1ea;box-shadow:0 6px 24px #071b3d10;border-radius:12px;padding:20px 24px}
+.workspace .site-settings-savebar strong{display:block;font-size:13px;color:var(--n)}
+.workspace .site-settings-savebar small{display:block;max-width:600px;font-size:11px;color:var(--m);margin-top:6px;line-height:1.5}
+.workspace .site-settings-buttons{display:flex;flex-wrap:wrap;gap:9px}
+.workspace .site-settings-buttons button{border:0;cursor:pointer;border-radius:8px;font-weight:800;padding:12px 17px;min-height:44px}
+.workspace .site-settings-buttons button.light{background:#eaf0f8;color:var(--n)}
+.workspace .site-settings-buttons button.red{background:var(--r);color:#fff}
+@media(max-width:1120px){
+ .workspace .site-settings-overview{align-items:flex-start;flex-direction:column}
+ .workspace .site-settings-links{justify-content:flex-start}
+ .workspace .site-settings-languages{grid-template-columns:1fr}
+}
+@media(max-width:680px){
+ .workspace .site-settings-panel{padding:17px}
+ .workspace .site-settings-contact{grid-template-columns:1fr}
+ .workspace .site-settings-savebar{padding:18px}
+ .workspace .site-language-column{padding:15px}
+ .workspace .site-settings-buttons{width:100%}
+ .workspace .site-settings-buttons button{flex:1 1 140px}
+}
