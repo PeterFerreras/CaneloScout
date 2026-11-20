@@ -81,7 +81,11 @@ if (!db.prepare('PRAGMA table_info(operations)').all().some(c => c.name === 'pay
 }
 db.exec('INSERT OR IGNORE INTO operations (id) SELECT id FROM registrations');
 const siteSettings = createSiteSettings(db);
-const requestLocale = req => /(?:^|;\s*)canelo_lang=en(?:;|$)/.test(req.headers.cookie ?? '') ? 'en' : 'es';
+const requestLocale = req => {
+  const query = new URL(req.url, 'http://localhost').searchParams.get('lang');
+  if (query === 'es' || query === 'en') return query;
+  return /(?:^|;\s*)canelo_lang=en(?:;|$)/.test(req.headers.cookie ?? '') ? 'en' : 'es';
+};
 
 const required = ['name', 'birth', 'nationality', 'city', 'phone', 'email', 'primary',
   'bats', 'throws', 'academy', 'level', 'attendance', 'passport', 'payref'];
