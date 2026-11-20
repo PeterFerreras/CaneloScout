@@ -3,18 +3,19 @@ import { render as profundidad } from '/client/profundidad.js';
 import { render as operacion } from '/client/operacion.js';
 import { render as publicacion } from '/client/publicacion.js';
 import { render as sitio } from '/client/sitio.js';
+import { render as tryoutScreen } from '/client/tryouts.js';
 const mount = document.querySelector('#operations');
 const escape = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const params = new URLSearchParams(location.search);
 const eventId = params.get('event');
 const requestedView = params.get('vista');
-const view = ['solicitudes', 'rosters', 'operacion', 'prensa', 'sitio'].includes(requestedView) ? requestedView : 'configuracion';
+const view = ['solicitudes', 'rosters', 'operacion', 'tryouts', 'prensa', 'sitio'].includes(requestedView) ? requestedView : 'configuracion';
 const labels = { review: 'Por revisar', correction: 'Requiere corrección', rejected: 'No elegible', approved: 'Aprobado' };
-const tabs = { configuracion: 'Configuración', solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', prensa: 'Publicación' };
+const tabs = { configuracion: 'Configuración', solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', tryouts: 'Tryouts', prensa: 'Publicación' };
 const headings = { configuracion: 'Configuración del evento', solicitudes: 'Solicitudes y validación',
-  rosters: 'Profundidad por posición', operacion: 'Rósters del Invitational', prensa: 'Publicación para prensa', sitio: 'Administración del sitio' };
+  rosters: 'Profundidad por posición', operacion: 'Rósters del Invitational', tryouts: 'Tryouts y juego', prensa: 'Publicación para prensa', sitio: 'Administración del sitio' };
 const nextScreen = { solicitudes: ['rosters', 'Armar equipos'], rosters: ['operacion', 'Continuar al evento'],
-  operacion: ['prensa', 'Publicar para prensa'] };
+  operacion: ['tryouts', 'Registrar tryouts'], tryouts: ['prensa', 'Publicar para prensa'] };
 const eventQuery = eventId ? '?event=' + encodeURIComponent(eventId) : '?';
 let screenPlayers = [];
 let demoState;
@@ -115,6 +116,7 @@ function renderScreen(data) {
     case 'solicitudes': return solicitudes(data, context);
     case 'rosters': return profundidad(data, context);
     case 'operacion': return operacion(data, context);
+    case 'tryouts': return tryoutScreen(data, context);
     case 'prensa': return publicacion(data, context);
     default:
       return eventForm(event) + `<section class="card" id="formulario"><h2>Formulario de inscripción</h2>
@@ -129,6 +131,50 @@ function renderScreen(data) {
 }
 
 async function load() {
+  if (view === 'tryouts') {
+    // A tryout is always tied to a specific event. Never mix players across editions.
+    if (!eventId) {
+      const events = await api('events');
+      screenPlayers = [];
+      mount.innerHTML = '<div class="dash ops-dash admin-shell">' + controlMenu() +
+        '<section class="admin-content"><div class="admin-breadcrumb">Administración / Tryouts</div>' +
+        '<h2 class="display">Selecciona un evento para evaluar</h2>' +
+        '<p>Cada edición tiene sus propias sesiones: primero tryouts, luego el juego.</p>' +
+        '<div class="try-event-list">' + (events.map(e =>
+          '<a class="card try-event-card" href="/admin/?event=' + encodeURIComponent(e.id) +
+          '&vista=tryouts"><strong>' + escape(e.name) + '</strong><small>' +
+          escape(e.venue) + ' · ' + escape(e.starts) + '</small></a>').join('') ||
+          '<div class="card">Crea un evento en Configuración para comenzar.</div>') +
+        '</div></section></div>';
+      return;
+    }
+    const query='tryouts?event='+encodeURIComponent(eventId)+
+      (params.get('session')?'&session='+encodeURIComponent(params.get('session')):'');
+    const data=await api(query);
+    if(data.session && !params.get('session')) {
+      // Keep the selected session in the URL so edits always target the correct one.
+      const q=new URLSearchParams(params);q.set('session',data.session.id);
+      history.replaceState(null,'','/admin/?'+q.toString());
+      params.set('session',data.session.id);
+    }
+    screenPlayers=data.players;
+    mount.innerHTML = '<div class="dash ops-dash admin-shell">' + controlMenu() +
+      '<section class="admin-content"><div class="admin-breadcrumb"><a href="/admin/">Administración</a> / Tryouts y Juego</div>' +
+      '<div class="apphead"><div><span class="eyebrow">EVALUACIÓN DE JUGADORES</span>' +
+      '<h2 class="display">Tryouts y juego</h2></div></div><div class="admin-module">' +
+      tryoutScreen(data,{escape,eventId,params}) + '</div></section></div>';
+    // Custom drill position choices only show positions matching the selected group.
+    mount.querySelectorAll('[data-try-group]').forEach(groupSelect=>{
+      const position=groupSelect.form.querySelector('[data-try-position]');
+      const adjust=()=>{
+        for(const option of position.options) option.hidden=option.value!=='all' &&
+          option.dataset.group!==groupSelect.value;
+        if(position.selectedOptions[0]?.hidden)position.value='all';
+      };
+      groupSelect.addEventListener('change',adjust);adjust();
+    });
+    return;
+  }
   if (view === 'sitio') {
     const config = await api('site');
     screenPlayers = [];
@@ -274,6 +320,41 @@ mount.addEventListener('submit', async event => {
           return;
         }
         break;
+      }
+      case 'tryout-session': {
+        const result=await api('tryouts/sessions'+eventQuery,{
+          name:fields.name,date:fields.date,kind:fields.kind,note:fields.note||''
+        });
+        location.assign('/admin/?event='+encodeURIComponent(eventId)+
+          '&vista=tryouts&session='+encodeURIComponent(result.id));
+        return;
+      }
+      case 'tryout-status': {
+        const id=params.get('session') || mount.querySelector('.try-session-link[aria-current="page"]')
+          ?.href.match(/session=([^&]+)/)?.[1];
+        if(!id)throw Error('Selecciona una sesión.');
+        await api('tryouts/sessions/'+encodeURIComponent(id)+'/status'+eventQuery,
+          {status:fields.status,published:!!fields.published});
+        break;
+      }
+      case 'tryout-drill': {
+        const id=params.get('session') || mount.querySelector('.try-session-link[aria-current="page"]')
+          ?.href.match(/session=([^&]+)/)?.[1];
+        if(!id)throw Error('Selecciona una sesión.');
+        await api('tryouts/sessions/'+encodeURIComponent(id)+'/drills'+eventQuery,{
+          name:fields.name,group:fields.group,position:fields.position,unit:fields.unit,
+          attempts:Number(fields.attempts),best:fields.best
+        });break;
+      }
+      case 'tryout-attempt': {
+        const id=params.get('session') || mount.querySelector('.try-session-link[aria-current="page"]')
+          ?.href.match(/session=([^&]+)/)?.[1];
+        if(!id)throw Error('Selecciona una sesión.');
+        await api('tryouts/sessions/'+encodeURIComponent(id)+'/attempts'+eventQuery,{
+          playerId:form.dataset.player,drillId:fields.drillId,
+          attemptNo:Number(fields.attemptNo),value:fields.delete==='true'?null:Number(fields.value),
+          delete:fields.delete==='true',note:fields.note||''
+        });break;
       }
       case 'team': await api('teams' + eventQuery, fields); break;
       case 'review': case 'payment': await api(playerPath, fields); break;
