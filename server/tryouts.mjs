@@ -124,6 +124,9 @@ export function createTryouts(db) {
     if (!name || note===null || !dateOK(date) || !['showcase','game'].includes(kind)) {
       error('Completa el nombre, tipo y fecha de la sesión.');
     }
+    if (kind === 'showcase' && db.prepare("SELECT 1 FROM tryout_sessions WHERE event_id=? AND kind='game' LIMIT 1").get(eventId)) {
+      error('La fase de juego ya comenzó. No puedes crear nuevas sesiones de tryouts.');
+    }
     if (kind === 'game') {
       // A showcase must be completed before starting games. Show the client
       // two sequential phases instead of mixing tryout drills and game stats.
@@ -213,7 +216,7 @@ export function createTryouts(db) {
     const person=JSON.parse(row.details);
     if (!person.consent) return null;
     const sessions=db.prepare('SELECT id,name,session_date,kind,status,updated_at FROM tryout_sessions '+
-      'WHERE event_id=? AND published=1 ORDER BY session_date DESC,created_at DESC').all(eventId);
+      'WHERE event_id=? AND published=1 ORDER BY CASE kind WHEN \'showcase\' THEN 0 ELSE 1 END, session_date ASC, created_at ASC').all(eventId);
     const results=sessions.map(session=>{
       const tests=db.prepare(
         'SELECT d.id,d.name,d.group_key,d.position_key,d.unit,d.best_by,d.attempts_allowed '+
