@@ -173,6 +173,12 @@ async function load() {
       };
       groupSelect.addEventListener('change',adjust);adjust();
     });
+    mount.querySelectorAll('.try-attempt .try-valid input').forEach(check=>{
+      const input=check.closest('form').querySelector('input[name="value"]');
+      const adjust=()=>{input.disabled=!check.checked;input.required=check.checked};
+      check.addEventListener('change',adjust);
+      adjust();
+    });
     return;
   }
   if (view === 'sitio') {
@@ -343,7 +349,18 @@ mount.addEventListener('submit', async event => {
         if(!id)throw Error('Selecciona una sesión.');
         await api('tryouts/sessions/'+encodeURIComponent(id)+'/drills'+eventQuery,{
           name:fields.name,group:fields.group,position:fields.position,unit:fields.unit,
-          attempts:Number(fields.attempts),best:fields.best
+          attempts:Number(fields.attempts),best:fields.best,
+          minValue:fields.minValue===''?null:Number(fields.minValue),
+          maxValue:fields.maxValue===''?null:Number(fields.maxValue)
+        });break;
+      }
+      case 'tryout-drill-settings': {
+        const id=params.get('session');
+        if(!id)throw Error('Selecciona una sesión.');
+        await api('tryouts/sessions/'+encodeURIComponent(id)+'/drills/'+encodeURIComponent(fields.drillId)+eventQuery,{
+          enabled:!!fields.enabled,attempts:Number(fields.attempts),best:fields.best,
+          minValue:fields.minValue===''?null:Number(fields.minValue),
+          maxValue:fields.maxValue===''?null:Number(fields.maxValue)
         });break;
       }
       case 'tryout-attempt': {
@@ -352,8 +369,9 @@ mount.addEventListener('submit', async event => {
         if(!id)throw Error('Selecciona una sesión.');
         await api('tryouts/sessions/'+encodeURIComponent(id)+'/attempts'+eventQuery,{
           playerId:form.dataset.player,drillId:fields.drillId,
-          attemptNo:Number(fields.attemptNo),value:fields.delete==='true'?null:Number(fields.value),
-          delete:fields.delete==='true',note:fields.note||''
+          attemptNo:Number(fields.attemptNo),
+          value:fields.delete==='true'||fields.value==null||fields.value===''?null:Number(fields.value),
+          valid:!!fields.valid,delete:fields.delete==='true',note:fields.note||''
         });break;
       }
       case 'team': await api('teams' + eventQuery, fields); break;
