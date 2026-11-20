@@ -524,6 +524,57 @@
     'Ya puedes crear una sesión de Juego y registrar las estadísticas del partido.': 'You can now create a Game session and record game statistics.'
   });
 
+  Object.assign(translations, {
+    'Split de 10 yardas': '10-yard split',
+    'Tiempo de home a primera': 'Home-to-first time',
+    'Velocidad del bate': 'Bat speed',
+    'Ángulo de salida del batazo': 'Launch angle',
+    'Distancia del batazo': 'Batted-ball distance',
+    'Precisión de tiro del infield (de 5)': 'Infield throwing accuracy (of 5)',
+    'Tiempo de tiro del jardín derecho al home': 'Right-field-to-home throw time',
+    'Velocidad de curva': 'Curveball velocity',
+    'Velocidad de slider': 'Slider velocity',
+    'Velocidad de cambio': 'Changeup velocity',
+    'Precisión de tiro a segunda (de 5)': 'Throwing accuracy to second (of 5)',
+    'Recepción de lanzamientos': 'Receiving',
+    'Bloqueo de pitcheos': 'Blocking',
+    'Configurar prueba:': 'Configure test:',
+    'Intentos permitidos': 'Allowed attempts',
+    'Resultado principal': 'Main result',
+    'Marca principal': 'Main score',
+    'Promedio': 'Average',
+    'Mínimo permitido': 'Minimum allowed',
+    'Máximo permitido': 'Maximum allowed',
+    'Prueba activa': 'Enabled test',
+    'Guardar configuración': 'Save settings',
+    'Desactivar no borra los resultados. Puedes reactivar la prueba mientras la sesión permanezca abierta.':
+      'Disabling a test preserves its results. You can re-enable it while the session is open.',
+    'Intento válido': 'Valid attempt',
+    'Inválido / sin lectura': 'Invalid / no reading',
+    'Nota / motivo': 'Note / reason',
+    'Inválido': 'Invalid',
+    'válidos': 'valid',
+    'inválidos': 'invalid',
+    'Intentos válidos': 'Valid attempts',
+    'Intentos inválidos': 'Invalid attempts',
+    'Añadir pruebas estándar faltantes': 'Restore missing standard tests',
+    'Recupera las pruebas del catálogo sin modificar ni borrar resultados existentes.':
+      'Restores standard tests without changing or removing existing results.',
+    'prueba desactivada': 'disabled test',
+    'Foul / lectura inválida': 'Foul / invalid reading',
+    'Prom.': 'Avg.',
+    'RESULTADO PROMEDIO': 'AVERAGE RESULT',
+    'MENOR MARCA': 'LOWEST RESULT',
+    'MEJOR MARCA': 'BEST RESULT',
+    'Mínimo': 'Minimum',
+    'Máximo': 'Maximum',
+    'Grados (°)': 'Degrees (°)',
+    'Opcional': 'Optional',
+    'Observación': 'Observation',
+    'Ej. foul, mal tiro, fallo de radar': 'e.g. foul, off-target throw, radar failure',
+    'El catálogo de pruebas ya está completo.': 'The standard test catalogue is already complete.'
+  });
+
   const attributeTranslations = ['placeholder', 'aria-label', 'title'];
   const langCookie = document.cookie.match(/(?:^|;\s*)canelo_lang=(es|en)(?:;|$)/)?.[1] || 'es';
   const queryLocale = new URL(location.href).searchParams.get('lang');
