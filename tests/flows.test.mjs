@@ -131,14 +131,14 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
     const pitch=scorecard.drills.find(d=>d.name==='Velocidad de recta');
     const outfield=scorecard.drills.find(d=>d.name==='Tiro del jardín derecho al home');
     assert.ok(pitch && outfield);
-    const attempt=(drillId,attemptNo,value,note='') =>
+    const attempt=(drillId,attemptNo,value,note='',status=200) =>
       request('/admin/tryouts/sessions/'+showcase+'/attempts?event='+event,
-        {playerId:player,drillId,attemptNo,value,note});
-    await attempt(outfield.id,1,89,'Tiro no autorizado por posición'),422;
+        {playerId:player,drillId,attemptNo,value,note},status);
+    await attempt(outfield.id,1,89,'Tiro no autorizado por posición',422);
     await attempt(pitch.id,1,83,'Velocidad de recta — prueba interna');
     await attempt(pitch.id,2,91);
     await attempt(pitch.id,2,92);
-    await attempt(pitch.id,3,220, 'Fuera del rango'),422;
+    await attempt(pitch.id,3,220,'Fuera del rango',422);
     const privateProfile=await request('/api/showcase?event='+event+'&player='+player);
     assert.equal(privateProfile.sessions.length,0,'Draft tryout statistics must not be public');
     await request('/admin/tryouts/sessions?event='+event,
