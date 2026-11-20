@@ -71,7 +71,7 @@ export function render(data,{escape,eventId,params}) {
     <summary>⚙ Configurar prueba: ${escape(drill.name)}</summary>
     <form data-action="tryout-drill-settings" class="try-form-grid">
       <input type="hidden" name="drillId" value="${escape(drill.id)}">
-      <label>Intentos permitidos<input name="attempts" type="number" min="1" max="12" required value="${drill.attempts_allowed}" ${session.status==='open'?'':'disabled'}></label>
+      <label>Intentos permitidos<input name="attempts" type="number" min="1" max="30" required value="${drill.attempts_allowed}" ${session.status==='open'?'':'disabled'}></label>
       <label>Resultado principal<select name="best" ${session.status==='open'?'':'disabled'}>
         <option value="max" ${drill.best_by==='max'?'selected':''}>Mayor marca</option>
         <option value="min" ${drill.best_by==='min'?'selected':''}>Menor marca</option>
@@ -100,7 +100,7 @@ export function render(data,{escape,eventId,params}) {
         <option value="feet">Pies</option><option value="score">Puntuación / 10</option>
         <option value="percent">Porcentaje</option><option value="reps">Repeticiones</option>
         <option value="degrees">Grados (°)</option></select></label>
-      <label>Intentos<input type="number" name="attempts" value="3" min="1" max="12" required></label>
+      <label>Intentos<input type="number" name="attempts" value="3" min="1" max="30" required></label>
       <label>Resultado principal<select name="best"><option value="max">Mayor marca</option>
         <option value="min">Menor marca</option><option value="avg">Promedio</option></select></label>
       <label>Mínimo permitido<input type="number" name="minValue" step="any" placeholder="Opcional"></label>
