@@ -2,16 +2,17 @@ import { render as solicitudes } from '/client/solicitudes.js';
 import { render as profundidad } from '/client/profundidad.js';
 import { render as operacion } from '/client/operacion.js';
 import { render as publicacion } from '/client/publicacion.js';
+import { render as sitio } from '/client/sitio.js';
 const mount = document.querySelector('#operations');
 const escape = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const params = new URLSearchParams(location.search);
 const eventId = params.get('event');
 const requestedView = params.get('vista');
-const view = ['solicitudes', 'rosters', 'operacion', 'prensa'].includes(requestedView) ? requestedView : 'configuracion';
+const view = ['solicitudes', 'rosters', 'operacion', 'prensa', 'sitio'].includes(requestedView) ? requestedView : 'configuracion';
 const labels = { review: 'Por revisar', correction: 'Requiere corrección', rejected: 'No elegible', approved: 'Aprobado' };
 const tabs = { configuracion: 'Configuración', solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', prensa: 'Publicación' };
 const headings = { configuracion: 'Configuración del evento', solicitudes: 'Solicitudes y validación',
-  rosters: 'Profundidad por posición', operacion: 'Rósters del Invitational', prensa: 'Publicación para prensa' };
+  rosters: 'Profundidad por posición', operacion: 'Rósters del Invitational', prensa: 'Publicación para prensa', sitio: 'Administración del sitio' };
 const nextScreen = { solicitudes: ['rosters', 'Armar equipos'], rosters: ['operacion', 'Continuar al evento'],
   operacion: ['prensa', 'Publicar para prensa'] };
 const eventQuery = eventId ? '?event=' + encodeURIComponent(eventId) : '?';
@@ -62,6 +63,13 @@ function controlMenu() {
           <span class="side-step" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span>
           <span>${key === 'configuracion' ? 'Eventos y configuración' : label}</span>
         </a>`).join('')}
+    </nav>
+    <div class="side-section-label side-section-secondary">SITIO WEB</div>
+    <nav class="side-nav side-site-nav" aria-label="Administración del portal">
+      <a href="/admin/?vista=sitio" ${view === 'sitio' ? 'aria-current="page"' : ''}>
+        <span class="side-step" aria-hidden="true">⚙</span>
+        <span>Administración del sitio</span>
+      </a>
     </nav>
     <div class="side-section-label side-section-secondary">RECURSOS</div>
     <div class="side-shortcuts">
@@ -121,6 +129,18 @@ function renderScreen(data) {
 }
 
 async function load() {
+  if (view === 'sitio') {
+    const config = await api('site');
+    screenPlayers = [];
+    mount.innerHTML = '<div class="dash ops-dash admin-shell">' + controlMenu() +
+      '<section class="admin-content"><div class="admin-breadcrumb"><a href="/admin/">Administración</a>' +
+      '<span>/</span><strong>Sitio web</strong></div>' +
+      '<div class="apphead"><div><span class="eyebrow">Configuración general</span>' +
+      '<h2 class="display">Administración del sitio</h2>' +
+      '<p>Contenido público, idiomas, enlaces y metadatos de búsqueda.</p></div></div>' +
+      '<div class="admin-module">' + sitio(config, { escape }) + '</div></section></div>';
+    return;
+  }
   if (!eventId && view === 'configuracion') {
     const events = await api('events');
     mount.innerHTML = '<div class="dash ops-dash admin-shell">' + controlMenu() +
@@ -229,7 +249,7 @@ function message(text, error = false) {
 mount.addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.target;
-  const button = form.querySelector('button');
+  const button = event.submitter || form.querySelector('button');
   const fields = Object.fromEntries(new FormData(form, event.submitter));
   const nullableNumber = key => fields[key] === '' ? null : Number(fields[key]);
   const playerEvent = screenPlayers.find(player => player.id === form.dataset.player)?.event_id ?? eventId;
@@ -239,6 +259,14 @@ mount.addEventListener('submit', async event => {
   button.disabled = true;
   try {
     switch (form.dataset.action) {
+      case 'site': {
+        const action = fields.action;
+        if (!['save', 'publish'].includes(action)) throw new Error('Acción no válida.');
+        await api('site', fields);
+        await load();
+        message(action === 'publish' ? 'Sitio publicado correctamente.' : 'Borrador guardado correctamente.');
+        return;
+      }
       case 'event': {
         const result = await api('events' + (eventId ? eventQuery : ''), { ...fields, accepting: !!fields.accepting });
         if (!eventId) {
