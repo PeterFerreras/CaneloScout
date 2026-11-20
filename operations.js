@@ -48,10 +48,31 @@ function eventForm(event = {}) {
 }
 
 function controlMenu() {
-  return `<aside class="side"><h3>CENTRO DE CONTROL</h3><nav aria-label="Centro de control">
-    ${Object.entries(tabs).map(([key, label]) => `<a href="/admin/${eventQuery}&vista=${key}" ${view === key ? 'aria-current="page"' : ''}>${key === 'configuracion' ? 'Eventos y configuración' : label}</a>`).join('')}
-    <div class="side-divider"></div><a href="/admin/preview${eventQuery}">Formulario de inscripción</a>
-    <a href="/prensa${eventQuery}">Media Center público ↗</a></nav></aside>`;
+  const entries = Object.entries(tabs);
+  return `<aside class="side admin-sidebar" aria-label="Menú lateral del centro de control">
+    <div class="side-intro">
+      <span class="side-eyebrow">PANEL ORGANIZADOR</span>
+      <h2>CENTRO DE CONTROL</h2>
+      <p>Administración de eventos y talento deportivo.</p>
+    </div>
+    <div class="side-section-label">GESTIÓN</div>
+    <nav class="side-nav" aria-label="Módulos administrativos">
+      ${entries.map(([key, label], index) =>
+        `<a href="/admin/${eventQuery}&vista=${key}" ${view === key ? 'aria-current="page"' : ''}>
+          <span class="side-step" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span>
+          <span>${key === 'configuracion' ? 'Eventos y configuración' : label}</span>
+        </a>`).join('')}
+    </nav>
+    <div class="side-section-label side-section-secondary">RECURSOS</div>
+    <div class="side-shortcuts">
+      <a href="/admin/preview${eventQuery}">Formulario de inscripción <span aria-hidden="true">↗</span></a>
+      <a href="/prensa${eventQuery}" target="_blank" rel="noopener">Media Center público <span aria-hidden="true">↗</span></a>
+    </div>
+    <div class="side-bottom">
+      <span class="side-indicator" aria-hidden="true"></span>
+      <div><strong>Panel de administración</strong><small>Acceso restringido</small></div>
+    </div>
+  </aside>`;
 }
 
 const selected = (current, value) => current === value ? 'selected' : '';
@@ -103,7 +124,7 @@ async function load() {
   if (!eventId && view === 'configuracion') {
     const events = await api('events');
     mount.innerHTML = '<div class="dash ops-dash admin-shell">' + controlMenu() +
-      '<section><div class="apphead"><div><span class="eyebrow">Organización</span><h2 class="display">Eventos y configuración</h2><p>Gestiona tus ediciones y abre sus inscripciones.</p></div></div>' +
+      '<section class="admin-content"><div class="admin-breadcrumb"><a href="/admin/">Administración</a><span>/</span><strong>Eventos</strong></div><div class="apphead"><div><span class="eyebrow">Organización</span><h2 class="display">Eventos y configuración</h2><p>Gestiona tus ediciones y abre sus inscripciones.</p></div></div>' +
       '<div class="ops-home"><section><h3>Mis eventos</h3>' + (events.map(event =>
       `<article class="card"><h3><a href="/admin/?event=${event.id}&vista=${encodeURIComponent(view)}">${escape(event.name)}</a></h3>
       <p>${escape(event.venue)} · ${event.starts} a ${event.ends}</p>
@@ -120,10 +141,10 @@ async function load() {
     `<option value="${event.id}" ${selected(eventId, event.id)}>${escape(event.name)}</option>`).join('')}</select></label>`;
   const next = nextScreen[view];
   // Un único layout para todas las vistas: menú lateral fijo y contenido fluido.
-  mount.innerHTML = `<div class="dash ops-dash admin-shell">${controlMenu()}<section><div class="apphead"><div><span class="eyebrow">${escape(data.event.name)}</span>
+  mount.innerHTML = `<div class="dash ops-dash admin-shell">${controlMenu()}<section class="admin-content"><div class="admin-breadcrumb"><a href="/admin/">Administración</a><span>/</span><strong>${escape(headings[view] ?? headings.configuracion)}</strong></div><div class="apphead"><div><span class="eyebrow">${escape(data.event.name)}</span>
     <h2 class="display">${headings[view] ?? headings.configuracion}</h2></div>
     ${next ? `<a class="btn red" href="/admin/${eventQuery}&vista=${next[0]}">${next[1]}</a>` : ''}
-    </div>${data.demo ? '<p class="notice">Demostración con jugadores y equipos ficticios. Puedes probar los cambios durante esta visita.</p>' : filter}<div class="${view === 'configuracion' ? 'event-settings' : ''}">${renderScreen(data)}</div></section></div>`;
+    </div>${data.demo ? '<p class="notice">Demostración con jugadores y equipos ficticios. Puedes probar los cambios durante esta visita.</p>' : '<div class="admin-filter-bar">' + filter + '</div>'}<div class="admin-module ${view === 'configuracion' ? 'event-settings' : ''}">${renderScreen(data)}</div></section></div>`;
   mount.querySelector('#event-filter')?.addEventListener('change', event => {
     const query = new URLSearchParams({ vista: view });
     if (event.target.value) query.set('event', event.target.value);
