@@ -48,6 +48,18 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
       headers:{'Content-Type':'application/x-www-form-urlencoded',Origin:origin},
       body:new URLSearchParams({username:'admin',password:'test-password-only'}) });
     assert.equal(login.status,303); cookie=login.headers.get('set-cookie').split(';')[0];
+    const adminLayout = await request('/admin/?vista=prensa');
+    assert.match(adminLayout, /admin-logout/);
+    assert.match(adminLayout, /site-footer admin-footer/);
+    assert.match(adminLayout, /shell\.css/);
+    assert.doesNotMatch(adminLayout, /session-actions/);
+    const publicLayout = await request('/');
+    assert.match(publicLayout, /nav-admin-access/);
+    assert.match(publicLayout, /site-footer public-footer/);
+    assert.match(await request('/shell.css'), /footer-inner/);
+    assert.match(await request('/operations.js'), /admin-sidebar/);
+    assert.match(await request('/client/publicacion.js'), /publish-metrics/);
+
     assert.equal((await request('/admin/event')).players.length,0);
     assert.doesNotMatch(await request('/prensa'), /jugadores ficticios|ejemplo@example/);
     await request('/prensa?event=');
