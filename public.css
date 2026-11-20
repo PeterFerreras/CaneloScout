@@ -67,7 +67,7 @@
 
 /* External image is optional: retain Canelo Scout artwork and contrast. */
 .public-main .site-photo-ticket{position:relative;isolation:isolate;overflow:hidden}
-.public-main .site-photo-ticket .site-hero-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1;opacity:.78}
+.public-main .site-photo-ticket .site-hero-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:.78}
 .public-main .site-photo-ticket .logo{background:#fffffff2;position:relative;z-index:1}
 .site-preview-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px clamp(18px,3vw,48px);background:#fff0bf;border-bottom:2px solid #dca82c;color:#694e00;font-size:12px}
 .site-preview-banner strong{font-weight:900}
