@@ -66,3 +66,15 @@ header .nav.admin-header .admin-top-nav{width:100%;justify-content:space-between
 .site-footer .footer-overview{grid-column:auto}
 .site-footer .footer-bottom{padding:17px 20px}
 }
+
+/* Language control: both portals and sign-in share the same interaction. */
+.language-switch{display:inline-flex;align-items:center;gap:2px;border-radius:9px;border:1px solid #657b9c;padding:3px;background:#04132e35;flex:0 0 auto}
+.language-switch button{font:800 11px/1.2 Inter,Arial,sans-serif;min-width:34px;min-height:32px;padding:7px 8px;color:#d7e5f8;background:transparent;border:0;border-radius:6px;cursor:pointer}
+.language-switch button[aria-pressed=true]{background:#fff;color:#071b3d;box-shadow:0 1px 5px #0003}
+.language-switch button:hover:not([aria-pressed=true]){background:#ffffff19;color:#fff}
+.language-switch button:focus-visible{outline:2px solid #efc34a;outline-offset:2px}
+@media(max-width:600px){
+  header .nav.public-header .language-switch{grid-column:1/-1;justify-self:end}
+  header .nav.admin-header .admin-top-nav{flex-wrap:wrap}
+  header .nav.admin-header .language-switch{order:0}
+}
