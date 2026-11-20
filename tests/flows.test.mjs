@@ -57,6 +57,13 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
     assert.match(publicLayout, /nav-admin-access/);
     assert.match(publicLayout, /site-footer public-footer/);
     assert.match(await request('/shell.css'), /footer-inner/);
+    assert.match(loginHtml, /i18n\.js/);
+    assert.match(adminLayout, /i18n\.js/);
+    assert.match(publicLayout, /i18n\.js/);
+    const registerI18nScript = await request('/i18n.js');
+    assert.match(registerI18nScript, /canelo_lang/);
+    assert.match(registerI18nScript, /language-switch/);
+    assert.match(registerI18nScript, /container\.setAttribute\('value', container\.value\)/);
     assert.match(await request('/operations.js'), /admin-sidebar/);
     assert.match(await request('/client/publicacion.js'), /publish-metrics/);
 
