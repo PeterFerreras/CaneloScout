@@ -309,7 +309,7 @@ async function admin(req, res, path, url) {
       return redirect(res, '/admin/' + (view ? '?vista=' + encodeURIComponent(view) : ''));
     }
     const active = ({ solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', prensa: 'Publicación' })[url.searchParams.get('vista')] ?? 'Configuración';
-    return html(res, 'Panel de eventos', '<form class="session-actions" method="post" action="/admin/logout"><button>Cerrar sesión</button></form><div id="operations"></div>',
+    return html(res, 'Panel de eventos', '<div id="operations"></div>',
       '<script type="module" src="/operations.js"></script>', { eventId, active, privateView: true, hideTitle: true });
   }
   if (path === '/admin/events' && req.method === 'GET') return json(res, 200, listEvents());
