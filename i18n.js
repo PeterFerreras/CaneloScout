@@ -345,6 +345,45 @@
     'Presenta el evento, objetivos y requisitos principales.': 'Describe the event, goals and eligibility requirements.'
   };
 
+  // Copy used by the original public-page composition, including the event flow.
+  Object.assign(translations, {
+    '🇺🇸 TRYOUT PARA BECAS · COLLEGE · HIGH SCHOOL': '🇺🇸 SCHOLARSHIP TRYOUT · COLLEGE · HIGH SCHOOL',
+    'Una sola plataforma para captar talento, validar solicitudes, completar equipos durante el evento y publicar perfiles deportivos listos para prensa y scouts.': 'One platform to scout talent, review applications, form teams during the event, and publish player profiles for media and scouts.',
+    '01 / REGISTRO': '01 / REGISTRATION',
+    '02 / REVISIÓN': '02 / REVIEW',
+    '03 / EVENTO': '03 / EVENT',
+    '04 / PRENSA': '04 / MEDIA',
+    'Sin crear usuario: datos, posiciones, foto, comprobante y código de seguimiento.': 'No account required: player details, positions, photo, receipt, and tracking code.',
+    'Foto, edad, autorización y comprobante visibles en una misma ficha.': 'Review photo, age, consent, and payment proof in one record.',
+    'Equipos, check-in, números, mediciones y posiciones secundarias.': 'Teams, check-in, jersey numbers, measurements, and secondary positions.',
+    'La validación inicial fue completada.': 'Initial verification is complete.',
+    'Enviando solicitud…': 'Submitting application…',
+    'Revisa los datos y autorizaciones de este paso.': 'Check the information and consents in this step.',
+    'Revisa los campos marcados antes de continuar.': 'Review the highlighted fields before continuing.',
+    'La solicitud quedó guardada.': 'Your application has been saved.',
+    'Todos los eventos': 'All events',
+    'Selecciona una edición': 'Select an event',
+    'Volver a eventos': 'Back to events',
+    'Inscripciones abiertas': 'Registration open',
+    'Inscripciones cerradas': 'Registration closed',
+    'Revisar solicitud': 'Review application',
+    'Publicar para prensa': 'Publish for media',
+    'Continuar al evento': 'Continue to event',
+    'Armar equipos': 'Create teams',
+    'Nombre del evento': 'Event name',
+    'Guardar nota': 'Save note',
+    'No elegible': 'Not eligible',
+    'El código de seguimiento es privado.': 'Keep your tracking code private.',
+    'Revisa el nombre, las fechas y los documentos de tu evento.': 'Check your event name, dates, and documents.',
+    'Consultar estado': 'Check status',
+    'Acceso administrativo ↗': 'Administrative access ↗',
+    'Configuración': 'Settings',
+    'Regresar al inicio': 'Back to home',
+    'INFORMACIÓN DE PAGO': 'PAYMENT INFORMATION',
+    'No hay solicitudes que coincidan.': 'No applications match your search.',
+    'Cargar fotografía': 'Upload photo'
+  });
+
   const attributeTranslations = ['placeholder', 'aria-label', 'title'];
   const langCookie = document.cookie.match(/(?:^|;\s*)canelo_lang=(es|en)(?:;|$)/)?.[1] || 'es';
   const queryLocale = new URL(location.href).searchParams.get('lang');
@@ -357,7 +396,14 @@
     history.replaceState(history.state, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
   }
 
-  const translate = text => locale === 'en' ? translations[text] || text : text;
+  const translate = text => {
+    if (locale !== 'en') return text;
+    if (translations[text]) return translations[text];
+    const duration = text.match(/^(\d+) DÍAS?$/);
+    if (duration) return duration[1] + (duration[1] === '1' ? ' DAY' : ' DAYS');
+    if (text === '1 SISTEMA') return '1 PLATFORM';
+    return text;
+  };
   // Display labels are not submitted as values: native options without a value
   // attribute receive their original canonical value before translating.
   function translateText(node) {
@@ -365,7 +411,7 @@
     if (!container || container.closest('script, style, textarea, code, pre, [data-no-translate]')) return;
     const source = node.nodeValue;
     const trimmed = source.trim();
-    if (!trimmed || !translations[trimmed]) return;
+    if (!trimmed || translate(trimmed) === trimmed) return;
     if (container.tagName === 'OPTION' && !container.hasAttribute('value')) {
       container.setAttribute('value', container.value);
     }
