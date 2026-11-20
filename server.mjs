@@ -9,6 +9,7 @@ import { updateOperation } from './server/workflow.mjs';
 import { createViews } from './server/views.mjs';
 import { renderLoginPage } from './server/login-view.mjs';
 import { createSiteSettings } from './server/site-settings.mjs';
+import { createTryouts, POSITION_GROUPS } from './server/tryouts.mjs';
 
 const adminPassword = process.env.ADMIN_PASSWORD;
 const port = Number(process.env.PORT ?? 8091);
@@ -81,6 +82,7 @@ if (!db.prepare('PRAGMA table_info(operations)').all().some(c => c.name === 'pay
 }
 db.exec('INSERT OR IGNORE INTO operations (id) SELECT id FROM registrations');
 const siteSettings = createSiteSettings(db);
+const tryouts = createTryouts(db);
 const requestLocale = req => {
   const query = new URL(req.url, 'http://localhost').searchParams.get('lang');
   if (query === 'es' || query === 'en') return query;
@@ -315,7 +317,7 @@ async function admin(req, res, path, url) {
       const view = url.searchParams.get('vista');
       return redirect(res, '/admin/' + (view ? '?vista=' + encodeURIComponent(view) : ''));
     }
-    const active = ({ solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', prensa: 'Publicación' })[url.searchParams.get('vista')] ?? 'Configuración';
+    const active = ({ solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', tryouts: 'Tryouts', prensa: 'Publicación' })[url.searchParams.get('vista')] ?? 'Configuración';
     return html(res, 'Panel de eventos', '<div id="operations"></div>',
       '<script type="module" src="/operations.js"></script>', { eventId, active, privateView: true, hideTitle: true });
   }
@@ -329,6 +331,27 @@ async function admin(req, res, path, url) {
   if (path === '/admin/site/preview' && req.method === 'GET') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.end(presentationPage({ settings: siteSettings.state().draft, locale: requestLocale(req), preview: true }));
+  }
+  // An event owns its own showcase and game sessions. All changes require admin login.
+  if (path === '/admin/tryouts' && req.method === 'GET') {
+    const selectedEvent = getEvent(url.searchParams.get('event'));
+    if (!selectedEvent) return invalid(res, 'Selecciona un evento antes de evaluar jugadores.');
+    return json(res, 200, tryouts.list(selectedEvent.id, url.searchParams.get('session') ?? ''));
+  }
+  if (path === '/admin/tryouts/sessions' && req.method === 'POST') {
+    const selectedEvent = getEvent(url.searchParams.get('event'));
+    if (!selectedEvent) return invalid(res, 'Selecciona un evento válido.');
+    return json(res, 201, tryouts.createSession(selectedEvent.id, await readJson(req, 4096)));
+  }
+  const tryoutAction = path.match(/^\/admin\/tryouts\/sessions\/([a-f0-9-]{36})\/(drills|attempts|status)$/);
+  if (tryoutAction && req.method === 'POST') {
+    const selectedEvent = getEvent(url.searchParams.get('event'));
+    if (!selectedEvent) return invalid(res, 'Selecciona un evento válido.');
+    const [ , sessionId, action ] = tryoutAction;
+    const input = await readJson(req, 4096);
+    if (action === 'drills') return json(res, 201, tryouts.createDrill(selectedEvent.id, sessionId, input));
+    if (action === 'attempts') return json(res, 200, tryouts.record(selectedEvent.id, sessionId, input));
+    return json(res, 200, tryouts.setSession(selectedEvent.id, sessionId, input));
   }
   if (path === '/admin/events' && req.method === 'GET') return json(res, 200, listEvents());
   const event = getEvent(url.searchParams.get('event'));
@@ -415,6 +438,8 @@ const assets = new Map([
   ['/registration.js', [registrationScript, 'text/javascript']],
   ['/operations.js', [operationsScript, 'text/javascript']],
   ['/client/sitio.js', [readFileSync(new URL('./client/sitio.js', import.meta.url)), 'text/javascript']],
+  ['/client/tryouts.js', [readFileSync(new URL('./client/tryouts.js', import.meta.url)), 'text/javascript']],
+  ['/showcase.js', [readFileSync(new URL('./showcase.js', import.meta.url)), 'text/javascript']],
   ['/operations.css', [readFileSync(new URL('./operations.css', import.meta.url)), 'text/css']],
   ['/public.css', [readFileSync(new URL('./public.css', import.meta.url)), 'text/css']],
   ['/shell.css', [readFileSync(new URL('./shell.css', import.meta.url)), 'text/css']],
@@ -444,6 +469,15 @@ createServer(async (req, res) => {
       return res.end(presentationPage({ locale: requestLocale(req) }));
     }
     const event = getEvent(url.searchParams.get('event'));
+    // Public API exposes only authorized profiles and sessions explicitly published by organizers.
+    if (req.method === 'GET' && path === '/api/showcase') {
+      const playerId = url.searchParams.get('player');
+      if (!event || !/^CSI-[a-f0-9-]{36}$/.test(playerId ?? '')) {
+        return json(res, 404, { error: 'Ficha deportiva no disponible.' });
+      }
+      const profile = tryouts.publicPlayer(event.id, playerId);
+      return profile ? json(res, 200, profile) : json(res, 404, { error: 'Ficha deportiva no publicada.' });
+    }
     if (req.method === 'GET' && path === '/corregir') {
       const code = url.searchParams.get('codigo')?.trim() ?? '';
       const registration = db.prepare("SELECT r.event_id FROM registrations r JOIN operations o ON o.id=r.id WHERE r.id=? AND o.status='correction'").get(code);
@@ -529,6 +563,7 @@ createServer(async (req, res) => {
       }
       const pressEvent = event ?? {id:'',name:'Todos los eventos',venue:'Canelo Scout'};
       const playerId = url.searchParams.get('jugador');
+      const group = url.searchParams.get('grupo') ?? '';
       const query = url.searchParams.get('buscar')?.trim().toLowerCase() ?? '';
       const teamId = url.searchParams.get('equipo') ?? '';
       const published = (event ? roster(event.id) : listEvents().flatMap(item => roster(item.id))).filter(player => player.published && player.status === 'approved' &&
@@ -536,16 +571,33 @@ createServer(async (req, res) => {
       const teams = new Map(published.map(player => [player.team_id, player.team]));
       const cards = published.filter(player => (!playerId || player.id === playerId) &&
         (!teamId || player.team_id === teamId) &&
+        (!group || [player.details.primary, player.details.secondary].some(position =>
+          (POSITION_GROUPS[group] ?? []).includes(position))) &&
         [player.details.name, player.details.primary, player.details.secondary].some(value => String(value ?? '').toLowerCase().includes(query)))
         .map(({ id, event_id, details, team, jersey, sprint, velocity }) => `<article class="card pcard">
           <div class="cover"><span class="number">${jersey ?? '—'}</span>${escape(details.name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase())}</div>
           <div class="pbody"><span class="tag blue">${escape(team)}</span>
           <h3><a href="/prensa?event=${event_id}&amp;jugador=${id}">${escape(details.name)}</a></h3>
+          <a class="scout-view-link" href="/prensa?event=${event_id}&amp;jugador=${id}">Ficha deportiva y resultados de tryouts ↗</a>
           <p>${escape(details.primary)} · ${escape(details.age)} años · B/T ${escape(details.bats?.[0] ?? '—')}/${escape(details.throws?.[0] ?? '—')}</p>
           <div class="stats"><div><b>${escape(details.height || '—')}</b><small>ESTATURA</small></div>
           <div><b>${escape(details.weight || '—')}</b><small>PESO</small></div>
           <div><b>${velocity === null ? '—' : velocity + ' mph'}</b><small>VELOCIDAD</small></div></div>
           ${playerId && sprint !== null ? `<p>60 yardas: ${sprint} s</p>` : ''}</div></article>`).join('');
+      const selected = playerId ? published.find(player => player.id === playerId &&
+        (!event || player.event_id === event.id)) : null;
+      const scorecard = selected ? `<section class="wrap scout-profile" id="showcase-profile"
+        data-player="${escape(selected.id)}" data-event="${escape(selected.event_id)}">
+        <header class="scout-profile-heading"><div><span class="eyebrow">SCOUT REPORT · SHOWCASE</span>
+          <h2>Resultados de ${escape(selected.details.name)}</h2>
+          <p>Primero pruebas y mediciones de tryouts; después estadísticas del juego. Cada intento conserva su marca.</p></div>
+          <button id="showcase-refresh" class="btn light" type="button">Actualizar resultados</button>
+        </header><p id="showcase-updated" class="scout-updated"></p>
+        <div class="scout-phase-guide" aria-label="Fases del evento">
+          <span>01 · TRYOUTS</span><span>02 · JUEGO</span></div>
+        <div id="showcase-body" class="scout-history" aria-live="polite"><p>Cargando resultados…</p></div>
+        <p id="showcase-status" role="status" class="scout-note"></p>
+      </section>` : '';
       return html(res, 'Media Center', `<section class="mediahero"><div class="wrap">
         <span class="badge">MEDIA CENTER · ACCESO PARA PRENSA</span><h1>Talento en el diamante</h1>
         <p>${escape(pressEvent.name)} · ${escape(pressEvent.venue)} · Rósters oficiales</p></div></section>
@@ -554,9 +606,13 @@ createServer(async (req, res) => {
           `<option value="${item.id}" ${item.id === pressEvent.id ? 'selected' : ''}>${escape(item.name)}</option>`).join('')}</select>
         <input type="search" name="buscar" value="${escape(query)}" placeholder="Buscar jugador o posición…" aria-label="Buscar jugador o posición">
         <select name="equipo" aria-label="Equipo"><option value="">Todos los equipos</option>${[...teams].map(([id, name]) =>
-          `<option value="${id}" ${id === teamId ? 'selected' : ''}>${escape(name)}</option>`).join('')}</select><button>Filtrar</button></form></div>
-        ${cards ? '<div class="mediagrid">' + cards + '</div>' : '<p>No hay perfiles publicados que coincidan.</p>'}</section>`,
-        '', { eventId: pressEvent.id, active: 'Prensa', hideTitle: true, fullWidth: true });
+          `<option value="${id}" ${id === teamId ? 'selected' : ''}>${escape(name)}</option>`).join('')}</select>
+        <select name="grupo" aria-label="Grupo de posición"><option value="">Todos los grupos</option>
+          ${Object.keys(POSITION_GROUPS).map(key => `<option value="${key}" ${group === key ? 'selected' : ''}>${escape({infield:'Infield',outfield:'Outfield',pitcher:'Pitchers',catcher:'Catchers'}[key])}</option>`).join('')}</select>
+        <button>Filtrar</button></form></div>
+        ${cards ? '<div class="mediagrid">' + cards + '</div>' : '<p>No hay perfiles publicados que coincidan.</p>'}</section>${scorecard}`,
+        selected ? '<script src="/showcase.js" defer></script>' : '',
+        { eventId: pressEvent.id, active: 'Prensa', hideTitle: true, fullWidth: true });
     }
     return json(res, 404, { error: 'Página no encontrada.' });
   } catch (error) {
