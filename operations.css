@@ -425,3 +425,25 @@ header .nav{flex-wrap:wrap}
  .workspace .try-attempt-list{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:400px){.workspace .try-attempt-list{grid-template-columns:1fr}.workspace .try-phase small{display:none}}
+
+
+/* Repeated baseball tryout measurements and configurable standard drills. */
+.workspace .try-drill-nav a.try-disabled{opacity:.58;border-style:dashed;background:#f4f5f7}
+.workspace .try-drill-nav a.try-disabled.active{opacity:1;border-color:#d4b0b7;background:#fff2f3}
+.workspace .try-drill-settings{margin:15px 0 0;padding:0 18px;border-color:#d7e1ef}
+.workspace .try-drill-settings summary{padding:14px 0;cursor:pointer;color:var(--b);font-size:12px;font-weight:900}
+.workspace .try-drill-settings form{padding:12px 0 17px}
+.workspace .try-drill-settings .try-enabled{display:flex;gap:10px;align-items:center;align-self:end;min-height:42px}
+.workspace .try-drill-settings .try-enabled input{width:auto;min-height:0;accent-color:var(--b)}
+.workspace .try-drill-settings .hint{color:var(--m);font-size:11px;margin:0 0 14px;line-height:1.5}
+.workspace .try-attempt .try-valid{display:flex;align-items:center;gap:7px;margin-top:11px;font-weight:800;font-size:11px}
+.workspace .try-attempt .try-valid input{width:16px;height:16px;min-height:0;margin:0;accent-color:var(--b)}
+.workspace .try-attempt input[name=value]:disabled{background:#f0f1f4;color:#7c8696}
+.workspace .try-invalid-badge{display:block;color:#a2253c;background:#fff0f2;border:1px solid #ecc7cf;
+  font-size:10px;font-weight:900;border-radius:6px;margin-top:9px;padding:6px 8px}
+.workspace .try-player .try-best strong{font-variant-numeric:tabular-nums}
+.workspace .try-player .try-best small{line-height:1.45}
+.workspace .try-standard-action{margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.workspace .try-standard-action button{font-weight:800;padding:10px 14px;border-radius:8px;cursor:pointer}
+.workspace .try-standard-action small{color:var(--m);font-size:11px;max-width:470px;line-height:1.4}
+@media(max-width:700px){.workspace .try-drill-settings form{grid-template-columns:1fr}}
