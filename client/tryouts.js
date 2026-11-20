@@ -158,7 +158,9 @@ export function render(data,{escape,eventId,params}) {
         <div class="card try-drills"><div class="try-heading"><h3>Pruebas · ${GROUPS.find(x=>x[0]===group)?.[1]}</h3>
           <small>Selecciona una medición</small></div>
           <div class="try-drill-nav">${drillNav||'<p>No hay pruebas para este grupo.</p>'}</div>
-          ${drillSettings}${drillForm}</div>
+          ${drillSettings}${drillForm}
+          ${session.kind==='showcase'&&session.status==='open'?'<form class="try-standard-action" data-action="tryout-standards"><button type="submit" class="btn light">Añadir pruebas estándar faltantes</button><small>Recupera las pruebas del catálogo sin modificar ni borrar resultados existentes.</small></form>':''}
+        </div>
         ${drill?`<div class="try-heading try-heading-player"><div><span class="eyebrow">REGISTRO POR JUGADOR</span>
           <h3>${escape(drill.name)}</h3>
           <small>${drill.attempts_allowed} intentos · Unidad ${UNITS[drill.unit]||drill.unit} ·
