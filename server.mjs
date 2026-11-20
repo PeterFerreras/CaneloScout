@@ -343,6 +343,12 @@ async function admin(req, res, path, url) {
     if (!selectedEvent) return invalid(res, 'Selecciona un evento válido.');
     return json(res, 201, tryouts.createSession(selectedEvent.id, await readJson(req, 4096)));
   }
+  const standardCatalog = path.match(/^\/admin\/tryouts\/sessions\/([a-f0-9-]{36})\/standards$/);
+  if (standardCatalog && req.method === 'POST') {
+    const selectedEvent = getEvent(url.searchParams.get('event'));
+    if (!selectedEvent) return invalid(res, 'Selecciona un evento válido.');
+    return json(res, 200, tryouts.addStandardDrills(selectedEvent.id, standardCatalog[1]));
+  }
   const drillUpdate = path.match(/^\/admin\/tryouts\/sessions\/([a-f0-9-]{36})\/drills\/([a-f0-9-]{36})$/);
   if (drillUpdate && req.method === 'POST') {
     const selectedEvent = getEvent(url.searchParams.get('event'));
