@@ -354,6 +354,14 @@ mount.addEventListener('submit', async event => {
           maxValue:fields.maxValue===''?null:Number(fields.maxValue)
         });break;
       }
+      case 'tryout-standards': {
+        const id=params.get('session');
+        if(!id)throw Error('Selecciona una sesión.');
+        const result=await api('tryouts/sessions/'+encodeURIComponent(id)+'/standards'+eventQuery,{});
+        await load();
+        message(result.added?result.added+' pruebas estándar agregadas.':'El catálogo de pruebas ya está completo.');
+        return;
+      }
       case 'tryout-drill-settings': {
         const id=params.get('session');
         if(!id)throw Error('Selecciona una sesión.');
