@@ -10,6 +10,7 @@ CaneloScout evoluciona a partir de la maqueta visual conservada en `dist/index.h
 - `/eventos/:id`: ficha informativa del evento.
 - `/registro?event=:id`: inscripción real al evento abierto (4 pasos).
 - `/prensa?event=:id`: perfiles autorizados y publicados en Media Center.
+- `/prensa?event=:id&jugador=:id`: ficha para scouts con resultados de tryouts y juego que hayan sido publicados.
 - `/seguimiento?codigo=:id`: consulta pública del estado, mediante el código no predecible de la solicitud.
 
 **Back office** (autenticación obligatoria):
@@ -17,6 +18,7 @@ CaneloScout evoluciona a partir de la maqueta visual conservada en `dist/index.h
 - `/admin/?event=:id&vista=solicitudes`: revisión de expedientes y comprobantes.
 - `/admin/?event=:id&vista=rosters`: profundidad por posición y equipos.
 - `/admin/?event=:id&vista=operacion`: check-in, números y mediciones.
+- `/admin/?event=:id&vista=tryouts`: **Tryouts → Juego**: jornadas, evaluaciones por infield/outfield/pitcher/catcher, registro de varios intentos, mejores marcas y estadísticas del juego.
 - `/admin/?event=:id&vista=prensa`: controles de publicación.
 - `/admin/preview?event=:id`: vista previa del registro (no guarda datos).
 - `/admin/?vista=sitio`: **Administración general del sitio web**, con contenidos ES/EN, enlaces, imagen de portada y metadatos SEO.
@@ -48,6 +50,23 @@ El portal público, el inicio de sesión y el back office incorporan un selector
 Las etiquetas, campos, instrucciones y mensajes de la interfaz se traducen desde `i18n.js`, incluidos los componentes que se insertan de forma dinámica. En los formularios, la traducción visual de las opciones no altera los valores enviados al servidor. El catálogo se puede ampliar sin duplicar las pantallas.
 
 **Alcance:** esta primera implementación internacionaliza la interfaz. Los datos libres que escriba un organizador —nombre, descripción, sede y condiciones de un evento, noticias y contenido CMS futuro— **no se traducen automáticamente**. Para publicar esos textos completos en ambos idiomas se deben administrar sus versiones ES y EN; también siguen pendientes la localización de metadatos SEO y la comprobación visual integral de todas las cadenas.
+
+## Tryouts antes del juego y Media Center para scouts
+
+CaneloScout separa dos fases **obligatorias y consecutivas** por evento:
+
+1. **Tryouts:** el organizador crea una sesión de evaluación; el sistema incluye pruebas de carreras, fildeo, tiro del jardín derecho al home y pruebas de lanzadores y catchers. Cada jugador aprobado puede tener varios intentos registrados por prueba. Se preservan todos los resultados, se calcula la mejor marca y se pueden añadir nuevas pruebas configurables.
+2. **Juego:** se habilita cuando las sesiones de tryouts están cerradas. Los ponches (K) son **strikeouts**, una estadística del partido, distinta de los tryouts. Hay pruebas de juego independientes (K, BB, hits, RBI). No se pueden crear nuevos tryouts después de iniciar el juego.
+
+Las mediciones se guardan por **evento → sesión → prueba → jugador → intento** en nuevas tablas SQLite, sin alterar las mediciones o datos existentes. El panel permite mantener una sesión abierta durante la captura y publicar u ocultar sus resultados.
+
+El **Media Center** tiene filtros por grupos de posiciones y fichas de jugadores: resume sus mejores marcas, desglosa cada intento y muestra los resultados de tryouts **primero** y los del juego **después**. La ficha se refresca cada 30 segundos cuando está abierta y la pestaña es visible (no es una transmisión jugada a jugada). Solo se sirven perfiles aprobados, con pago validado y consentimiento para publicar, y sesiones marcadas como publicadas; los datos y observaciones internos no aparecen.
+
+### Acceso
+
+- En el back office: **Tryouts** → selecciona evento → crea jornada → elige posición y prueba → registra intentos.
+- Cierra los tryouts y después crea una jornada de **Juego** para registrar ponches y resultados del partido.
+- Publica expresamente la sesión para que el scout consulte resultados en el **Media Center**.
 
 ## Configuración general del portal
 
