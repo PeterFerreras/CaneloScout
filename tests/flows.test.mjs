@@ -29,6 +29,7 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
     }
     await request('/admin/events', undefined, 401);
     await request('/admin/site', undefined, 401);
+    await request('/admin/tryouts?event=unknown', undefined, 401);
     await request('/admin/site/preview', undefined, 303);
     const loginHtml = await request('/admin/login');
     assert.match(loginHtml, /login\.css|login\.js/);
@@ -126,7 +127,14 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
       {name:'Tryouts Día 1',date:'2027-01-12',kind:'showcase',note:'Pruebas y mediciones'},201);
     const scorecard=await request('/admin/tryouts?event='+event+'&session='+showcase);
     assert.equal(scorecard.phase,'showcase');
-    assert.equal(scorecard.drills.length>=10,true);
+    assert.equal(scorecard.drills.length>=25,true);
+    assert.ok(scorecard.drills.some(d=>d.name==='Split de 10 yardas'));
+    assert.ok(scorecard.drills.some(d=>d.name==='Velocidad de curva'));
+    assert.ok(scorecard.drills.some(d=>d.name==='Recepción de lanzamientos'));
+    const launch=scorecard.drills.find(d=>d.name==='Ángulo de salida del batazo');
+    assert.equal(launch.unit,'degrees');
+    assert.equal(launch.best_by,'avg');
+    assert.equal((await request('/admin/tryouts/sessions/'+showcase+'/standards?event='+event,{})).added,0);
     assert.equal(scorecard.players.some(p=>p.id===player),true);
     const pitch=scorecard.drills.find(d=>d.name==='Velocidad de recta');
     const outfield=scorecard.drills.find(d=>d.name==='Tiro del jardín derecho al home');
@@ -139,6 +147,18 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
     await attempt(pitch.id,2,91);
     await attempt(pitch.id,2,92);
     await attempt(pitch.id,3,220,'Fuera del rango',422);
+    const drillPath='/admin/tryouts/sessions/'+showcase+'/drills/'+pitch.id+'?event='+event;
+    await request(drillPath,{enabled:true,attempts:6,best:'max',minValue:50,maxValue:100});
+    await request(drillPath,{enabled:true,attempts:1,best:'max',minValue:null,maxValue:null},422);
+    await request(drillPath,{enabled:true,attempts:6,best:'max',minValue:null,maxValue:85},422);
+    await request('/admin/tryouts/sessions/'+showcase+'/attempts?event='+event,{
+      playerId:player,drillId:pitch.id,attemptNo:3,value:null,valid:false,
+      note:'Foul / lectura inválida'});
+    const angular=scorecard.drills.find(d=>d.name==='Ángulo de salida del batazo');
+    await request('/admin/tryouts/sessions/'+showcase+'/attempts?event='+event,{
+      playerId:player,drillId:angular.id,attemptNo:1,value:8,valid:true});
+    await request('/admin/tryouts/sessions/'+showcase+'/attempts?event='+event,{
+      playerId:player,drillId:angular.id,attemptNo:2,value:24,valid:true});
     const privateProfile=await request('/api/showcase?event='+event+'&player='+player);
     assert.equal(privateProfile.sessions.length,0,'Draft tryout statistics must not be public');
     await request('/admin/tryouts/sessions?event='+event,
@@ -150,8 +170,18 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
     const scoutAfterTryout=await request('/api/showcase?event='+event+'&player='+player);
     assert.equal(scoutAfterTryout.sessions[0].kind,'showcase');
     assert.equal(scoutAfterTryout.sessions[0].drills.find(d=>d.name==='Velocidad de recta').best,92);
-    assert.equal(scoutAfterTryout.sessions[0].drills.find(d=>d.name==='Velocidad de recta').attempts.length,2);
-    assert.doesNotMatch(JSON.stringify(scoutAfterTryout), /Tiro no autorizado|prueba interna|test@example.com|payref/);
+    const fastballPublic=scoutAfterTryout.sessions[0].drills.find(d=>d.name==='Velocidad de recta');
+    assert.equal(fastballPublic.attempts.length,3);
+    assert.equal(fastballPublic.validCount,2);
+    assert.equal(fastballPublic.invalidCount,1);
+    assert.equal(fastballPublic.average,87.5);
+    assert.equal(fastballPublic.attempts[2].valid,false);
+    assert.equal(fastballPublic.attempts[2].value,null);
+    const anglePublic=scoutAfterTryout.sessions[0].drills.find(d=>d.name==='Ángulo de salida del batazo');
+    assert.equal(anglePublic.best,16);
+    assert.equal(anglePublic.average,16);
+    assert.doesNotMatch(JSON.stringify(scoutAfterTryout),
+      /Tiro no autorizado|prueba interna|Foul \/ lectura inválida|test@example.com|payref/);
     const {id:game}=await request('/admin/tryouts/sessions?event='+event,
       {name:'Juego 1',date:'2027-01-13',kind:'game',note:'Scrimmage'},201);
     await request('/admin/tryouts/sessions?event='+event,
