@@ -28,6 +28,22 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
       return response.headers.get('content-type')?.includes('application/json') ? JSON.parse(text) : text;
     }
     await request('/admin/events', undefined, 401);
+    const loginHtml = await request('/admin/login');
+    assert.match(loginHtml, /login\.css|login\.js/);
+    assert.match(loginHtml, /id="login-user"/);
+    assert.match(loginHtml, /id="login-password"/);
+    assert.match(await request('/login.js'), /login-form/);
+    assert.match(await request('/login.css'), /login-layout/);
+    const invalidLogin = await fetch(origin + '/admin/login', {method: 'POST',redirect: 'manual',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded', Origin: origin},
+      body: new URLSearchParams({username: '', password: 'corta'})});
+    assert.equal(invalidLogin.status, 422);
+    assert.match(await invalidLogin.text(), /Completa ambos campos/);
+    const wrongLogin = await fetch(origin + '/admin/login', {method: 'POST',redirect: 'manual',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded', Origin: origin},
+      body: new URLSearchParams({username: 'admin', password: 'contraseña-incorrecta'})});
+    assert.equal(wrongLogin.status, 401);
+    assert.match(await wrongLogin.text(), /usuario o la contraseña son incorrectos/);
     const login = await fetch(origin + '/admin/login', { method:'POST', redirect:'manual',
       headers:{'Content-Type':'application/x-www-form-urlencoded',Origin:origin},
       body:new URLSearchParams({username:'admin',password:'test-password-only'}) });
