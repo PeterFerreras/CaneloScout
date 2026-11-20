@@ -108,6 +108,17 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
     await request('/registro?event='+event,undefined,410);
     await request('/admin/logout',{},303);
     await request('/admin/events',undefined,401);
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const denied = await fetch(origin + '/admin/login', {method: 'POST', redirect: 'manual',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', Origin: origin},
+        body: new URLSearchParams({username: 'admin', password: 'incorrect-password'})});
+      assert.equal(denied.status, 401, 'Intento fallido ' + (attempt + 1));
+    }
+    const throttled = await fetch(origin + '/admin/login', {method: 'POST', redirect: 'manual',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded', Origin: origin},
+      body: new URLSearchParams({username: 'admin', password: 'incorrect-password'})});
+    assert.equal(throttled.status, 429);
+    assert.equal(throttled.headers.get('retry-after'), '60');
     t.diagnostic('Registration, review/payment, assignment, duplicate jerseys, measurements, publishing, event settings and logout passed.');
   } finally {
     child.kill();
