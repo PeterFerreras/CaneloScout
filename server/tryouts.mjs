@@ -8,19 +8,33 @@ export const POSITION_GROUPS = Object.freeze({
   catcher: ['Catcher']
 });
 
+/** Starter catalogue. Entries are suggestions per event; organizers can adjust them. */
 export const SHOWCASE_DRILLS = Object.freeze([
   ['general','all','Carrera de 60 yardas','seconds',3,'min'],
   ['general','all','Carrera de 30 yardas','seconds',2,'min'],
+  ['general','all','Split de 10 yardas','seconds',3,'min'],
+  ['general','all','Tiempo de home a primera','seconds',2,'min'],
   ['general','all','Velocidad de salida del bate','mph',3,'max'],
+  ['general','all','Velocidad del bate','mph',3,'max'],
+  ['general','all','Ángulo de salida del batazo','degrees',3,'avg'],
+  ['general','all','Distancia del batazo','feet',3,'max'],
   ['infield','all','Velocidad de tiro del infield','mph',3,'max'],
+  ['infield','all','Precisión de tiro del infield (de 5)','count',2,'max',5],
   ['infield','all','Fildeo y control','score',3,'max'],
   ['outfield','Right field','Tiro del jardín derecho al home','mph',4,'max'],
+  ['outfield','Right field','Tiempo de tiro del jardín derecho al home','seconds',3,'min'],
   ['outfield','all','Velocidad de tiro del outfield','mph',3,'max'],
-  ['outfield','all','Precisión al home (de 5)','count',2,'max'],
+  ['outfield','all','Precisión al home (de 5)','count',2,'max',5],
   ['pitcher','all','Velocidad de recta','mph',5,'max'],
-  ['pitcher','all','Strikes en zona (de 10)','count',2,'max'],
+  ['pitcher','all','Velocidad de curva','mph',5,'max'],
+  ['pitcher','all','Velocidad de slider','mph',5,'max'],
+  ['pitcher','all','Velocidad de cambio','mph',5,'max'],
+  ['pitcher','all','Strikes en zona (de 10)','count',2,'max',10],
   ['catcher','all','Pop time a segunda base','seconds',3,'min'],
-  ['catcher','all','Velocidad del tiro del catcher','mph',3,'max']
+  ['catcher','all','Velocidad del tiro del catcher','mph',3,'max'],
+  ['catcher','all','Precisión de tiro a segunda (de 5)','count',2,'max',5],
+  ['catcher','all','Recepción de lanzamientos','score',3,'max'],
+  ['catcher','all','Bloqueo de pitcheos','score',3,'max']
 ]);
 export const GAME_DRILLS = Object.freeze([
   ['pitcher','all','Ponches (K)','count',1,'max'],
@@ -29,7 +43,7 @@ export const GAME_DRILLS = Object.freeze([
   ['general','all','Hits conectados (H)','count',1,'max'],
   ['general','all','Carreras impulsadas (RBI)','count',1,'max']
 ]);
-const UNITS = new Set(['seconds','mph','meters','feet','count','score','percent','reps']);
+const UNITS = new Set(['seconds','mph','meters','feet','count','score','percent','reps','degrees']);
 const GROUPS = new Set(['general', ...Object.keys(POSITION_GROUPS)]);
 const error = (message, status = 422) => { throw Object.assign(new Error(message), { status }); };
 const trimmed = (v,max) => typeof v === 'string' && v.trim().length <= max ? v.trim() : null;
@@ -48,9 +62,23 @@ function validValue(value,unit) {
   if (unit === 'mph') return value > 0 && value <= 200;
   if (unit === 'score') return value >= 0 && value <= 10;
   if (unit === 'percent') return value >= 0 && value <= 100;
+  if (unit === 'degrees') return value >= -90 && value <= 90;
   if (unit === 'meters' || unit === 'feet') return value >= 0 && value <= 1000;
   if (unit === 'count' || unit === 'reps') return Number.isInteger(value) && value >= 0 && value <= 200;
   return false;
+}
+
+function validValueBound(value,unit) {
+  return typeof value==='number' && Number.isFinite(value) &&
+    (unit!=='count'&&unit!=='reps' || Number.isInteger(value)) &&
+    (unit!=='degrees'||value>=-90&&value<=90);
+}
+function summarize(trials,bestBy) {
+  const valid=trials.filter(a=>a.is_valid).map(a=>a.value);
+  const average=valid.length?Number((valid.reduce((sum,value)=>sum+value,0)/valid.length).toFixed(3)):null;
+  const best=valid.length?
+    (bestBy==='avg'?average:bestBy==='min'?Math.min(...valid):Math.max(...valid)):null;
+  return {best,average,validCount:valid.length,invalidCount:trials.length-valid.length};
 }
 
 export function createTryouts(db) {
@@ -63,13 +91,22 @@ export function createTryouts(db) {
     "id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES tryout_sessions(id), "+
     "group_key TEXT NOT NULL, position_key TEXT NOT NULL DEFAULT 'all', "+
     "name TEXT NOT NULL, unit TEXT NOT NULL, attempts_allowed INTEGER NOT NULL, "+
-    "best_by TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0)");
+    "best_by TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, "+
+    "enabled INTEGER NOT NULL DEFAULT 1, min_value REAL, max_value REAL)");
   db.exec("CREATE TABLE IF NOT EXISTS tryout_attempts ("+
     "id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES tryout_sessions(id), "+
     "drill_id TEXT NOT NULL REFERENCES tryout_drills(id), player_id TEXT NOT NULL REFERENCES registrations(id), "+
     "attempt_no INTEGER NOT NULL, value REAL NOT NULL, note TEXT NOT NULL DEFAULT '', "+
-    "measured_at TEXT NOT NULL, updated_at TEXT NOT NULL, "+
+    "measured_at TEXT NOT NULL, updated_at TEXT NOT NULL, is_valid INTEGER NOT NULL DEFAULT 1, "+
     "UNIQUE(drill_id,player_id,attempt_no))");
+  // Non-destructive upgrades for databases created by earlier showcase builds.
+  const drillColumns = db.prepare('PRAGMA table_info(tryout_drills)').all().map(c => c.name);
+  if (!drillColumns.includes('enabled')) db.exec('ALTER TABLE tryout_drills ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1');
+  if (!drillColumns.includes('min_value')) db.exec('ALTER TABLE tryout_drills ADD COLUMN min_value REAL');
+  if (!drillColumns.includes('max_value')) db.exec('ALTER TABLE tryout_drills ADD COLUMN max_value REAL');
+  const attemptColumns = db.prepare('PRAGMA table_info(tryout_attempts)').all().map(c => c.name);
+  if (!attemptColumns.includes('is_valid')) db.exec('ALTER TABLE tryout_attempts ADD COLUMN is_valid INTEGER NOT NULL DEFAULT 1');
+
   db.exec('CREATE INDEX IF NOT EXISTS ix_tryout_session_event ON tryout_sessions(event_id,session_date)');
   db.exec('CREATE INDEX IF NOT EXISTS ix_tryout_drills_session ON tryout_drills(session_id,sort_order)');
   db.exec('CREATE INDEX IF NOT EXISTS ix_tryout_attempts_session ON tryout_attempts(session_id,drill_id)');
@@ -115,6 +152,8 @@ export function createTryouts(db) {
     return {sessions,session,drills,attempts,players,groups:POSITION_GROUPS,phase,
       canCreateGame:closedShowcase&&!openShowcase,
       stats:{players:players.length,drills:drills.length,attempts:attempts.length,
+        validAttempts:attempts.filter(a=>a.is_valid).length,
+        invalidAttempts:attempts.filter(a=>!a.is_valid).length,
         evaluated:new Set(attempts.map(r=>r.player_id)).size}};
   }
 
@@ -141,9 +180,9 @@ export function createTryouts(db) {
     try {
       db.prepare('INSERT INTO tryout_sessions (id,event_id,name,session_date,kind,note,status,published,created_at,updated_at) VALUES (?,?,?,?,?,?,?,0,?,?)')
         .run(id,eventId,name,date,kind,note,'open',time,time);
-      const add = db.prepare('INSERT INTO tryout_drills (id,session_id,group_key,position_key,name,unit,attempts_allowed,best_by,sort_order) VALUES (?,?,?,?,?,?,?,?,?)');
-      (kind==='game'?GAME_DRILLS:SHOWCASE_DRILLS).forEach(([group,position,title,unit,count,best],idx)=>
-        add.run(randomUUID(),id,group,position,title,unit,count,best,idx));
+      const add = db.prepare('INSERT INTO tryout_drills (id,session_id,group_key,position_key,name,unit,attempts_allowed,best_by,sort_order,max_value) VALUES (?,?,?,?,?,?,?,?,?,?)');
+      (kind==='game'?GAME_DRILLS:SHOWCASE_DRILLS).forEach(([group,position,title,unit,count,best,maxValue],idx)=>
+        add.run(randomUUID(),id,group,position,title,unit,count,best,idx,maxValue??null));
       db.exec('COMMIT');
     } catch (e) { db.exec('ROLLBACK');throw e; }
     return {id};
@@ -154,15 +193,51 @@ export function createTryouts(db) {
     const name=trimmed(input?.name,110), group=input?.group,position=input?.position??'all';
     const unit=input?.unit,count=input?.attempts,best=input?.best;
     if (!name || !GROUPS.has(group) || !UNITS.has(unit) ||
-      !Number.isInteger(count) || count<1 || count>12 || !['min','max'].includes(best) ||
+      !Number.isInteger(count) || count<1 || count>12 || !['min','max','avg'].includes(best) ||
       (position!=='all' && (!POSITION_GROUPS[group] || !POSITION_GROUPS[group].includes(position)))) {
       error('Revisa nombre, grupo, posición, unidad e intentos permitidos.');
     }
+    const minValue=input.minValue==null||input.minValue===''?null:input.minValue;
+    const maxValue=input.maxValue==null||input.maxValue===''?null:input.maxValue;
+    if ((minValue!==null&&!validValueBound(minValue,unit)) ||
+      (maxValue!==null&&!validValueBound(maxValue,unit)) ||
+      (minValue!==null&&maxValue!==null&&minValue>maxValue)) {
+      error('Revisa los valores mínimo y máximo de la prueba.');
+    }
     const id=randomUUID(),sort=db.prepare(
       'SELECT COALESCE(MAX(sort_order),-1)+1 AS n FROM tryout_drills WHERE session_id=?').get(sessionId).n;
-    db.prepare('INSERT INTO tryout_drills (id,session_id,group_key,position_key,name,unit,attempts_allowed,best_by,sort_order) VALUES (?,?,?,?,?,?,?,?,?)')
-      .run(id,sessionId,group,position,name,unit,count,best,sort);
+    db.prepare('INSERT INTO tryout_drills (id,session_id,group_key,position_key,name,unit,attempts_allowed,best_by,sort_order,min_value,max_value) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+      .run(id,sessionId,group,position,name,unit,count,best,sort,minValue,maxValue);
     return {id};
+  }
+
+  function updateDrill(eventId,sessionId,drillId,input) {
+    writable(eventId,sessionId);
+    const drill=getDrill(sessionId,drillId);
+    if (!input || typeof input.enabled!=='boolean' ||
+        !Number.isInteger(input.attempts)||input.attempts<1||input.attempts>12 ||
+        !['min','max','avg'].includes(input.best) ||
+        Object.keys(input).some(k=>!['enabled','attempts','best','minValue','maxValue'].includes(k))) {
+      error('Revisa el estado, número de intentos y método de cálculo.');
+    }
+    const highest=db.prepare('SELECT COALESCE(MAX(attempt_no),0) AS n FROM tryout_attempts WHERE drill_id=?').get(drill.id).n;
+    if (input.attempts<highest) error('No puedes reducir los intentos porque ya existen resultados con números superiores.');
+    const minValue=input.minValue==null||input.minValue===''?null:input.minValue;
+    const maxValue=input.maxValue==null||input.maxValue===''?null:input.maxValue;
+    if ((minValue!==null&&!validValueBound(minValue,drill.unit)) ||
+        (maxValue!==null&&!validValueBound(maxValue,drill.unit)) ||
+        (minValue!==null&&maxValue!==null&&minValue>maxValue)) {
+      error('Revisa los límites de la prueba.');
+    }
+    const existing=db.prepare('SELECT value FROM tryout_attempts WHERE drill_id=? AND is_valid=1').all(drill.id);
+    if (existing.some(row=>(minValue!==null&&row.value<minValue) ||
+      (maxValue!==null&&row.value>maxValue))) {
+      error('Los nuevos límites excluirían resultados válidos ya registrados.');
+    }
+    db.prepare('UPDATE tryout_drills SET enabled=?,attempts_allowed=?,best_by=?,min_value=?,max_value=? WHERE id=?')
+      .run(Number(input.enabled),input.attempts,input.best,minValue,maxValue,drill.id);
+    db.prepare('UPDATE tryout_sessions SET updated_at=? WHERE id=?').run(stamp(),sessionId);
+    return {ok:true};
   }
 
   function setSession(eventId,sessionId,input) {
@@ -193,15 +268,24 @@ export function createTryouts(db) {
     if (!isRelevant({primary:d.primary,secondary:d.secondary},drill)) {
       error('La prueba no corresponde a las posiciones de este jugador.');
     }
+    if (!drill.enabled && input.delete!==true) error('Activa esta prueba antes de registrar nuevos resultados.');
     if (input.delete===true) {
       db.prepare('DELETE FROM tryout_attempts WHERE session_id=? AND drill_id=? AND player_id=? AND attempt_no=?')
         .run(sessionId,drill.id,id,no);
     } else {
-      if (!validValue(input.value,drill.unit)) error('El resultado es inválido para la unidad de la prueba.');
+      const isValid=input.valid!==false;
+      if (isValid && (!validValue(input.value,drill.unit) ||
+          (drill.min_value!==null&&input.value<drill.min_value) ||
+          (drill.max_value!==null&&input.value>drill.max_value))) {
+        error('El resultado es inválido o excede los límites configurados.');
+      }
+      // Existing SQLite installations require a numeric value. For an invalid/no-read
+      // attempt, 0 is an internal placeholder; is_valid=0 prevents scoring it.
+      const value=isValid?input.value:0;
       const time=stamp();
-      db.prepare('INSERT INTO tryout_attempts (id,session_id,drill_id,player_id,attempt_no,value,note,measured_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?) '+
-        'ON CONFLICT(drill_id,player_id,attempt_no) DO UPDATE SET value=excluded.value,note=excluded.note,updated_at=excluded.updated_at')
-        .run(randomUUID(),sessionId,drill.id,id,no,input.value,note,time,time);
+      db.prepare('INSERT INTO tryout_attempts (id,session_id,drill_id,player_id,attempt_no,value,note,measured_at,updated_at,is_valid) VALUES (?,?,?,?,?,?,?,?,?,?) '+
+        'ON CONFLICT(drill_id,player_id,attempt_no) DO UPDATE SET value=excluded.value,note=excluded.note,updated_at=excluded.updated_at,is_valid=excluded.is_valid')
+        .run(randomUUID(),sessionId,drill.id,id,no,value,note,time,time,Number(isValid));
     }
     db.prepare('UPDATE tryout_sessions SET updated_at=? WHERE id=?').run(stamp(),sessionId);
     return {ok:true};
@@ -220,18 +304,18 @@ export function createTryouts(db) {
     const results=sessions.map(session=>{
       const tests=db.prepare(
         'SELECT d.id,d.name,d.group_key,d.position_key,d.unit,d.best_by,d.attempts_allowed '+
-        'FROM tryout_drills d WHERE d.session_id=? ORDER BY d.sort_order').all(session.id);
+        'FROM tryout_drills d WHERE d.session_id=? AND d.enabled=1 ORDER BY d.sort_order').all(session.id);
       const drills=tests.filter(test=>isRelevant(person,test)).map(test=>{
         const trials=db.prepare(
-          'SELECT attempt_no,value,measured_at,updated_at FROM tryout_attempts '+
+          'SELECT attempt_no,value,is_valid,measured_at,updated_at FROM tryout_attempts '+
           'WHERE session_id=? AND drill_id=? AND player_id=? ORDER BY attempt_no')
           .all(session.id,test.id);
         if (!trials.length) return null;
-        const values=trials.map(x=>x.value);
         return {name:test.name,group:test.group_key,position:test.position_key,
           unit:test.unit,bestBy:test.best_by,attemptsAllowed:test.attempts_allowed,
-          best:test.best_by==='min'?Math.min(...values):Math.max(...values),
-          attempts:trials.map(x=>({no:x.attempt_no,value:x.value,updatedAt:x.updated_at}))};
+          ...summarize(trials,test.best_by),
+          attempts:trials.map(x=>({no:x.attempt_no,valid:!!x.is_valid,
+            value:x.is_valid?x.value:null,updatedAt:x.updated_at}))};
       }).filter(Boolean);
       return {...session,drills};
     }).filter(x=>x.drills.length);
@@ -239,5 +323,5 @@ export function createTryouts(db) {
       sessions:results,updatedAt:results.reduce((date,s)=>s.updated_at>date?s.updated_at:date,'')};
   }
 
-  return {list,createSession,createDrill,setSession,record,publicPlayer};
+  return {list,createSession,createDrill,updateDrill,setSession,record,publicPlayer};
 }
