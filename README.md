@@ -19,6 +19,9 @@ CaneloScout evoluciona a partir de la maqueta visual conservada en `dist/index.h
 - `/admin/?event=:id&vista=operacion`: check-in, números y mediciones.
 - `/admin/?event=:id&vista=prensa`: controles de publicación.
 - `/admin/preview?event=:id`: vista previa del registro (no guarda datos).
+- `/admin/?vista=sitio`: **Administración general del sitio web**, con contenidos ES/EN, enlaces, imagen de portada y metadatos SEO.
+- `/admin/site/preview`: vista previa del borrador global (requiere sesión).
+- `GET /admin/site` / `POST /admin/site`: lectura, guardado de borrador y publicación de contenido; solo para administradores autenticados.
 
 **Importante:** el público y el back office comparten datos y servicios, pero tienen menús, estilos y documentos HTML diferentes. No se debe volver a mostrar la administración en la navegación pública.
 
@@ -46,6 +49,17 @@ Las etiquetas, campos, instrucciones y mensajes de la interfaz se traducen desde
 
 **Alcance:** esta primera implementación internacionaliza la interfaz. Los datos libres que escriba un organizador —nombre, descripción, sede y condiciones de un evento, noticias y contenido CMS futuro— **no se traducen automáticamente**. Para publicar esos textos completos en ambos idiomas se deben administrar sus versiones ES y EN; también siguen pendientes la localización de metadatos SEO y la comprobación visual integral de todas las cadenas.
 
+## Configuración general del portal
+
+Accede al back office, abre **Sitio web → Administración del sitio** y configura los textos de portada, la sección institucional, el footer y el SEO en **español e inglés**. También puedes proporcionar correo, enlaces de Instagram/Facebook/YouTube y una URL HTTPS para la imagen principal. Son ajustes globales, independientes de cada edición.
+
+- **Guardar borrador:** guarda los cambios en SQLite sin modificar el portal público.
+- **Vista previa del borrador:** permite revisarlos sin publicarlos, con la sesión iniciada.
+- **Publicar cambios:** sustituye la configuración visible por el borrador y actualiza la portada.
+- **Idioma del visitante:** el selector ES/EN conserva la preferencia; cada idioma muestra sus propios textos publicados.
+
+La base de datos crea automáticamente la tabla `site_settings` si no existe; la migración **no borra inscripciones ni eventos**. No se implementaron aún noticias, galería multimedia, historial de versiones ni la gestión de usuarios/roles; requieren módulos independientes.
+
 ## Organización del código
 
 - `server.mjs`: rutas, seguridad, datos y acciones del servidor Node.js.
@@ -53,6 +67,8 @@ Las etiquetas, campos, instrucciones y mensajes de la interfaz se traducen desde
 - `registration.js`: validación, pasos, carga de archivos y envío del registro público.
 - `public.css`: adaptación visual del portal público y Media Center.
 - `i18n.js`: selector persistente ES / EN y diccionario centralizado de textos de interfaz.
+- `server/site-settings.mjs`: persistencia global de borradores y publicaciones con validación.
+- `client/sitio.js`: módulo administrativo de contenido bilingüe.
 - `operations.js` y `operations.css`: controlador y estilos de la interfaz privada.
 - `client/solicitudes.js`, `profundidad.js`, `operacion.js` y `publicacion.js`: pantallas independientes que conservan la estructura visual de la maqueta.
 - `server/workflow.mjs`: reglas de revisión, pago, asignación, mediciones y publicación.
