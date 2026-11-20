@@ -1,0 +1,68 @@
+/* Canelo Scout: encabezados y pies de página comunes a ambos portales. */
+:root{--shell-pad:clamp(18px,2.9vw,46px)}
+body.public-body,body.admin-body{display:flex;flex-direction:column;min-height:100vh}
+body.public-body>main,body.admin-body>main{flex:1 0 auto}
+header .nav.public-header,header .nav.admin-header{display:flex;align-items:center;gap:20px;max-width:none;width:100%;padding:14px var(--shell-pad);min-height:76px}
+header .brand.public-brand{color:#fff;text-decoration:none;display:flex;align-items:center;gap:11px;flex:0 0 auto;margin-right:auto}
+header .brand.public-brand:hover{color:#fff}
+header .brand.public-brand strong{font-size:20px;white-space:nowrap}
+header .brand.public-brand small{font-size:9px;letter-spacing:.12em}
+header .nav.public-header .public-nav{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;width:auto}
+header .nav.public-header .public-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 13px;border-radius:9px;color:#dce7fa;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap}
+header .nav.public-header .public-nav a:hover,header .nav.public-header .public-nav a[aria-current=page]{background:#fff;color:var(--n)}
+header .nav.public-header .public-nav a.nav-cta{background:var(--r);color:#fff}
+header .nav.public-header .public-nav a.nav-cta:hover{background:#a30b26;color:#fff}
+header .nav.public-header .public-nav a.nav-admin-access{border:1px solid #899bb7;color:#fff;margin-left:5px;background:#ffffff0b}
+header .nav.public-header .public-nav a.nav-admin-access:hover{background:#fff;color:var(--n)}
+header .nav.admin-header .admin-top-nav{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex:0 0 auto}
+.admin-user{display:inline-flex;align-items:center;gap:9px;padding-right:14px;border-right:1px solid #5c7192}
+.admin-user-avatar{width:36px;height:36px;background:#d9e7ff;color:var(--n);display:grid;place-items:center;border-radius:50%;font-weight:900}
+.admin-user-label{display:flex;flex-direction:column;line-height:1.35}
+.admin-user-label strong{font-size:12px;color:white}
+.admin-user-label small{font-size:10px;color:#b4c7df}
+.admin-top-nav a.admin-portal-link{border:1px solid #53698a;color:#f7f9fd;text-decoration:none;padding:10px 13px;border-radius:8px;font-size:12px;font-weight:800;white-space:nowrap}
+.admin-top-nav a.admin-portal-link:hover{background:#fff;color:var(--n)}
+.admin-logout{margin:0}
+.admin-logout button{border:1px solid var(--r);background:var(--r);color:#fff;border-radius:8px;padding:10px 14px;min-height:42px;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer}
+.admin-logout button:hover{background:#a70d28}
+.admin-top-nav a:focus-visible,.admin-logout button:focus-visible,.public-nav a:focus-visible{outline:3px solid #efc34a;outline-offset:3px}
+.site-footer{background:#06152e;color:#c3d0e5;margin-top:auto;padding:0;width:100%}
+.site-footer .footer-inner{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(160px,.65fr) minmax(220px,.95fr);gap:clamp(26px,4vw,76px);max-width:1450px;width:100%;margin:auto;padding:42px var(--shell-pad) 33px}
+.site-footer .footer-overview{max-width:480px}
+.footer-wordmark{display:flex;align-items:center;gap:13px}
+.footer-symbol{display:grid;place-items:center;border:2px solid #fff;box-shadow:inset 0 0 0 3px var(--r);width:43px;height:43px;flex:none;border-radius:50%;font:19px Anton,Impact,sans-serif;color:#fff}
+.footer-wordmark strong{display:block;font:23px Anton,Impact,sans-serif;letter-spacing:.06em;color:#fff;line-height:1.1}
+.footer-wordmark small{display:block;font-size:9px;font-weight:800;color:#9fb6d7;letter-spacing:.13em;margin-top:3px}
+.site-footer p{margin:13px 0 0;line-height:1.65;font-size:12px;color:#b4c5dc}
+.site-footer .footer-col h2{font:11px Inter,Arial,sans-serif;letter-spacing:.15em;color:#fff;font-weight:900;margin:4px 0 16px}
+.site-footer .footer-col a{display:block;font-size:12px;font-weight:700;line-height:1.6;color:#dce7f8;text-decoration:none;width:fit-content;margin-bottom:10px}
+.site-footer .footer-col a:hover{text-decoration:underline;color:white}
+.site-footer .footer-col p{margin:0 0 14px}
+.site-footer .footer-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px solid #49617e66;width:100%;max-width:1450px;margin:auto;padding:18px var(--shell-pad) 22px;color:#94a9c7;font-size:11px}
+.admin-body .site-footer .footer-inner,.admin-body .site-footer .footer-bottom{max-width:none}
+@media(max-width:1120px){
+header .nav.public-header{flex-wrap:wrap;justify-content:space-between}
+header .nav.public-header .public-nav{flex:1 0 100%;justify-content:flex-start;gap:5px}
+}
+@media(max-width:800px){
+.site-footer .footer-inner{grid-template-columns:minmax(0,1fr) minmax(160px,.7fr);gap:28px}
+.site-footer .footer-overview{grid-column:1/-1}
+header .nav.admin-header{flex-wrap:wrap;gap:13px}
+header .nav.admin-header .admin-top-nav{margin-left:auto}
+}
+@media(max-width:600px){
+header .nav.public-header,header .nav.admin-header{padding:11px 15px;gap:11px}
+header .brand.public-brand strong{font-size:17px}
+header .brand.public-brand small{font-size:8px}
+header .nav.public-header .public-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:6px}
+header .nav.public-header .public-nav a{min-height:38px;padding:8px 5px;font-size:10.5px;white-space:normal;text-align:center}
+header .nav.public-header .public-nav a.nav-admin-access{margin-left:0}
+header .nav.admin-header .admin-top-nav{width:100%;justify-content:space-between;gap:6px}
+.admin-user{padding-right:8px;gap:6px}
+.admin-user-label small{display:none}
+.admin-user-avatar{width:30px;height:30px}
+.admin-top-nav a.admin-portal-link,.admin-logout button{padding:8px 7px;min-height:38px;font-size:10.5px}
+.site-footer .footer-inner{grid-template-columns:1fr;gap:25px;padding:34px 20px 24px}
+.site-footer .footer-overview{grid-column:auto}
+.site-footer .footer-bottom{padding:17px 20px}
+}
