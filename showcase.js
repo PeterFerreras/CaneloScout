@@ -12,8 +12,9 @@
   const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;')
     .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;");
   const tr=(es,en)=>document.documentElement.lang==='en'?en:es;
-  const unit={seconds:'s',mph:'mph',meters:'m',feet:'ft',count:'',score:'/10',percent:'%',reps:'reps'};
-  const number=(n,u)=>Number(n).toLocaleString(document.documentElement.lang==='en'?'en-US':'es-DO',
+  const unit={seconds:'s',mph:'mph',meters:'m',feet:'ft',count:'',score:'/10',percent:'%',reps:'reps',degrees:'°'};
+  const number=(n,u)=>n===null||n===undefined?'—':Number(n).toLocaleString(
+    document.documentElement.lang==='en'?'en-US':'es-DO',
     {maximumFractionDigits:3})+(unit[u]?' '+unit[u]:'');
   const date=v=>v?new Date(v).toLocaleDateString(document.documentElement.lang==='en'?'en-US':'es-DO',
     {day:'numeric',month:'short',year:'numeric'}):'—';
@@ -41,12 +42,15 @@
         <small>${session.drills.length} ${tr('pruebas con resultados','recorded tests')}</small></header>
       <div class="scout-results-table-wrap"><table class="scout-results-table">
         <thead><tr><th>${tr('Prueba','Drill')}</th><th>${tr('Grupo','Group')}</th>
-          <th>${tr('Mejor marca','Best')}</th><th>${tr('Intentos','Attempts')}</th></tr></thead>
+          <th>${tr('Marca principal','Main result')}</th><th>${tr('Promedio','Average')}</th><th>${tr('Intentos','Attempts')}</th></tr></thead>
         <tbody>${session.drills.map(drill=>`<tr><td><strong>${esc(drill.name)}</strong>
             <small>${drill.position==='all'?'':esc(drill.position)}</small></td>
-          <td>${esc(drill.group)}</td><td class="scout-best">${number(drill.best,drill.unit)}</td>
-          <td><div class="scout-attempt-values">${drill.attempts.map(a=>`<span>
-            <small>#${a.no}</small> ${number(a.value,drill.unit)}</span>`).join('')}</div></td>
+          <td>${esc(drill.group)}</td><td class="scout-best">${number(drill.best,drill.unit)}
+            <small>${drill.bestBy==='avg'?tr('Promedio','Average'):drill.bestBy==='min'?tr('Mínimo','Minimum'):tr('Máximo','Maximum')}</small></td>
+          <td class="scout-average">${number(drill.average,drill.unit)}
+            <small>${drill.validCount} ${tr('válidos','valid')}${drill.invalidCount?' · '+drill.invalidCount+' '+tr('inválidos','invalid'):''}</small></td>
+          <td><div class="scout-attempt-values">${drill.attempts.map(a=>`<span class="${a.valid?'':'scout-invalid-attempt'}">
+            <small>#${a.no}</small> ${a.valid?number(a.value,drill.unit):tr('Inválido','Invalid')}</span>`).join('')}</div></td>
           </tr>`).join('')}</tbody></table></div></section>`).join('');
     container.innerHTML=(highlights?'<div class="scout-highlights">'+highlights+'</div>':'')+sections;
   }
