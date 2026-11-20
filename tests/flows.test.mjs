@@ -28,6 +28,8 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
       return response.headers.get('content-type')?.includes('application/json') ? JSON.parse(text) : text;
     }
     await request('/admin/events', undefined, 401);
+    await request('/admin/site', undefined, 401);
+    await request('/admin/site/preview', undefined, 303);
     const loginHtml = await request('/admin/login');
     assert.match(loginHtml, /login\.css|login\.js/);
     assert.match(loginHtml, /id="login-user"/);
@@ -66,6 +68,22 @@ test('real HTTP workflow on an isolated SQLite database', async t => {
     assert.match(registerI18nScript, /container\.setAttribute\('value', container\.value\)/);
     assert.match(await request('/operations.js'), /admin-sidebar/);
     assert.match(await request('/client/publicacion.js'), /publish-metrics/);
+    assert.match(await request('/client/sitio.js'), /site-settings-form/);
+    assert.match(await request('/operations.js'), /vista=sitio/);
+    const siteState = await request('/admin/site');
+    assert.equal(siteState.draft.heroTitleEs, 'CANELO SCOUT');
+    assert.equal(siteState.hasUnpublishedChanges, false);
+    const draftSite = { ...siteState.draft, heroTitleEs: 'CANELO SCOUT DEMO ES',
+      heroTitleEn: 'CANELO SCOUT DEMO EN', seoTitleEs: 'Demostración Canelo Scout' };
+    await request('/admin/site', { ...draftSite, heroTitleEn: '' , action: 'save' }, 422);
+    const savedSite = await request('/admin/site', { ...draftSite, action: 'save' });
+    assert.equal(savedSite.hasUnpublishedChanges, true);
+    assert.match(await request('/admin/site/preview'), /CANELO SCOUT DEMO ES/);
+    assert.doesNotMatch(await request('/'), /CANELO SCOUT DEMO ES/);
+    const sitePublished = await request('/admin/site', { ...draftSite, action: 'publish' });
+    assert.equal(sitePublished.hasUnpublishedChanges, false);
+    assert.match(await request('/'), /CANELO SCOUT DEMO ES/);
+    assert.match(await request('/'), /Demostración Canelo Scout/);
 
     assert.equal((await request('/admin/event')).players.length,0);
     assert.doesNotMatch(await request('/prensa'), /jugadores ficticios|ejemplo@example/);
