@@ -108,7 +108,12 @@ export function createTryouts(db) {
     const attempts = session ? db.prepare(
       'SELECT * FROM tryout_attempts WHERE session_id=? ORDER BY drill_id,player_id,attempt_no').all(session.id) : [];
     const players = approved(eventId);
-    return {sessions,session,drills,attempts,players,groups:POSITION_GROUPS,
+    const closedShowcase = sessions.some(s=>s.kind==='showcase'&&s.status==='closed');
+    const openShowcase = sessions.some(s=>s.kind==='showcase'&&s.status==='open');
+    const phase = sessions.some(s=>s.kind==='game') ? 'game' :
+      closedShowcase&&!openShowcase ? 'ready_for_game' : 'showcase';
+    return {sessions,session,drills,attempts,players,groups:POSITION_GROUPS,phase,
+      canCreateGame:closedShowcase&&!openShowcase,
       stats:{players:players.length,drills:drills.length,attempts:attempts.length,
         evaluated:new Set(attempts.map(r=>r.player_id)).size}};
   }
@@ -118,6 +123,15 @@ export function createTryouts(db) {
     const kind = input?.kind??'showcase', date = input?.date;
     if (!name || note===null || !dateOK(date) || !['showcase','game'].includes(kind)) {
       error('Completa el nombre, tipo y fecha de la sesión.');
+    }
+    if (kind === 'game') {
+      // A showcase must be completed before starting games. Show the client
+      // two sequential phases instead of mixing tryout drills and game stats.
+      const completed = db.prepare("SELECT session_date FROM tryout_sessions WHERE event_id=? AND kind='showcase' AND status='closed' ORDER BY session_date DESC LIMIT 1").get(eventId);
+      if (!completed) error('Primero completa y cierra una sesión de tryouts antes de crear un juego.');
+      if (date < completed.session_date) error('El juego no puede tener una fecha anterior al último tryout completado.');
+      const unfinished = db.prepare("SELECT 1 FROM tryout_sessions WHERE event_id=? AND kind='showcase' AND status='open' LIMIT 1").get(eventId);
+      if (unfinished) error('Cierra las sesiones de tryouts abiertas antes de comenzar el juego.');
     }
     const id = randomUUID(), time=stamp();
     db.exec('BEGIN');
@@ -153,6 +167,10 @@ export function createTryouts(db) {
     if (!input || Object.keys(input).some(key=>!['published','status'].includes(key)) ||
       typeof input.published!=='boolean' || !['open','closed'].includes(input.status)) {
       error('Estado de sesión o publicación inválido.');
+    }
+    if (item.kind === 'showcase' && input.status === 'open') {
+      const started = db.prepare("SELECT 1 FROM tryout_sessions WHERE event_id=? AND kind='game' LIMIT 1").get(eventId);
+      if (started) error('No puedes reabrir los tryouts después de iniciar la fase de juego.');
     }
     db.prepare('UPDATE tryout_sessions SET status=?,published=?,updated_at=? WHERE id=?')
       .run(input.status,Number(input.published),stamp(),item.id);
