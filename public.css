@@ -107,3 +107,13 @@
 .public-main .scout-view-link{display:inline-block;margin:5px 0 14px;font-size:11px;font-weight:800;text-decoration:underline;color:var(--b)}
 @media(max-width:850px){.public-main .scout-profile .scout-highlights{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:500px){.public-main .scout-session-title{padding:15px}.public-main .scout-highlight{padding:15px}.public-main .scout-profile-heading{align-items:flex-start}}
+
+
+/* Authorized scout cards: average and invalid attempts are clearly distinguished. */
+.public-main .scout-results-table td.scout-average{font:19px Anton,Impact,sans-serif;color:var(--n);font-variant-numeric:tabular-nums}
+.public-main .scout-results-table td.scout-average small,.public-main .scout-results-table td.scout-best small{
+  font:10px/1.4 Inter,Arial,sans-serif;color:var(--m);display:block;margin-top:5px}
+.public-main .scout-attempt-values .scout-invalid-attempt{background:#fff0f2;color:#922943;
+  border:1px solid #ebc1ca}
+.public-main .scout-results-table th:nth-child(3),.public-main .scout-results-table th:nth-child(4){white-space:nowrap}
+.public-main .scout-results-table{min-width:750px}
