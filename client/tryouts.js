@@ -1,6 +1,6 @@
 
 const GROUPS=[['general','General'],['infield','Infield'],['outfield','Outfield'],['pitcher','Pitchers'],['catcher','Catchers']];
-const UNITS={seconds:'s',mph:'mph',meters:'m',feet:'ft',count:'',score:'/10',percent:'%',reps:'reps'};
+const UNITS={seconds:'s',mph:'mph',meters:'m',feet:'ft',count:'',score:'/10',percent:'%',reps:'reps',degrees:'°'};
 const link=(event,session,group,drill)=>{
   const q=new URLSearchParams({event,vista:'tryouts'});
   if(session)q.set('session',session);
@@ -10,8 +10,12 @@ const link=(event,session,group,drill)=>{
 };
 const relevant=(p,d,groups)=>d.group_key==='general'||[p.primary,p.secondary].some(position=>
   (groups[d.group_key]||[]).includes(position)&&(d.position_key==='all'||d.position_key===position));
-const best=(attempts,d)=>!attempts.length?null:d.best_by==='min'?
-  Math.min(...attempts.map(a=>a.value)):Math.max(...attempts.map(a=>a.value));
+const summarize=(attempts,d)=>{
+  const values=attempts.filter(a=>!!a.is_valid).map(a=>a.value);
+  const average=values.length?Number((values.reduce((sum,x)=>sum+x,0)/values.length).toFixed(3)):null;
+  return {best:!values.length?null:d.best_by==='avg'?average:d.best_by==='min'?Math.min(...values):Math.max(...values),
+    average,valid:values.length,invalid:attempts.length-values.length};
+};
 const display=(n,unit)=>Number(n).toLocaleString('es-DO',{maximumFractionDigits:3})+
   (UNITS[unit]?' '+UNITS[unit]:'');
 
@@ -19,7 +23,7 @@ export function render(data,{escape,eventId,params}) {
   const {sessions,session,drills,attempts,players,groups,stats,canCreateGame,phase}=data;
   const group=GROUPS.some(([key])=>key===params.get('group'))?params.get('group'):'general';
   const list=drills.filter(d=>d.group_key===group);
-  const drill=list.find(d=>d.id===params.get('drill'))||list[0];
+  const drill=list.find(d=>d.id===params.get('drill'))||list.find(d=>d.enabled)||list[0];
   const eligible=drill?players.filter(p=>relevant(p,drill,groups)):[];
   const createSession=`<form class="card try-create-form" data-action="tryout-session">
     <h3>Nueva jornada de evaluación</h3>
@@ -47,7 +51,7 @@ export function render(data,{escape,eventId,params}) {
     href="${link(eventId,s.id,group)}" ${s.id===session.id?'aria-current="page"':''}>
     <strong>${escape(s.name)}</strong><small>${escape(s.session_date)} · ${s.kind==='game'?'Juego':'Showcase'}</small></a>`).join('');
   const metrics=[['Jugadores aprobados',stats.players],['Pruebas',stats.drills],
-    ['Intentos guardados',stats.attempts],['Jugadores evaluados',stats.evaluated]]
+    ['Intentos válidos',stats.validAttempts],['Intentos inválidos',stats.invalidAttempts]]
     .map(([name,count])=>`<article class="card try-metric"><span>${name}</span><strong>${count}</strong></article>`).join('');
   const statusForm=`<form class="card try-status-form" data-action="tryout-status">
     <div><strong>${escape(session.name)}</strong><small>${escape(session.session_date)} · ${session.kind==='game'?'Juego':'Showcase'}</small>
@@ -61,8 +65,27 @@ export function render(data,{escape,eventId,params}) {
   const groupNav=GROUPS.map(([key,name])=>`<a href="${link(eventId,session.id,key)}"
     class="${group===key?'active':''}" ${group===key?'aria-current="page"':''}>${name}
     <span>${drills.filter(d=>d.group_key===key).length}</span></a>`).join('');
-  const drillNav=list.map(d=>`<a class="${drill?.id===d.id?'active':''}" href="${link(eventId,session.id,group,d.id)}">
-    ${escape(d.name)} <small>${d.attempts_allowed} ${d.attempts_allowed===1?'intento':'intentos'}</small></a>`).join('');
+  const drillNav=list.map(d=>`<a class="${drill?.id===d.id?'active':''} ${d.enabled?'':'try-disabled'}" href="${link(eventId,session.id,group,d.id)}">
+    ${escape(d.name)} <small>${d.attempts_allowed} ${d.attempts_allowed===1?'intento':'intentos'}${d.enabled?'':' · desactivada'}</small></a>`).join('');
+  const drillSettings=drill?`<details class="card try-drill-settings">
+    <summary>⚙ Configurar prueba: ${escape(drill.name)}</summary>
+    <form data-action="tryout-drill-settings" class="try-form-grid">
+      <input type="hidden" name="drillId" value="${escape(drill.id)}">
+      <label>Intentos permitidos<input name="attempts" type="number" min="1" max="12" required value="${drill.attempts_allowed}" ${session.status==='open'?'':'disabled'}></label>
+      <label>Resultado principal<select name="best" ${session.status==='open'?'':'disabled'}>
+        <option value="max" ${drill.best_by==='max'?'selected':''}>Mayor marca</option>
+        <option value="min" ${drill.best_by==='min'?'selected':''}>Menor marca</option>
+        <option value="avg" ${drill.best_by==='avg'?'selected':''}>Promedio</option></select></label>
+      <label>Mínimo permitido<input type="number" step="any" name="minValue"
+        value="${escape(drill.min_value??'')}" ${session.status==='open'?'':'disabled'}></label>
+      <label>Máximo permitido<input type="number" step="any" name="maxValue"
+        value="${escape(drill.max_value??'')}" ${session.status==='open'?'':'disabled'}></label>
+      <label class="check try-enabled"><input type="checkbox" name="enabled"
+        ${drill.enabled?'checked':''} ${session.status==='open'?'':'disabled'}>Prueba activa</label>
+      ${session.status==='open'?'<button class="btn red">Guardar configuración</button>':''}
+    </form>
+    <p class="hint">Desactivar no borra los resultados. Puedes reactivar la prueba mientras la sesión permanezca abierta.</p>
+  </details>`:'';
   const posOptions=Object.entries(groups).flatMap(([group,positions])=>
     positions.map(p=>`<option value="${escape(p)}" data-group="${group}">${escape(p)}</option>`)).join('');
   const drillForm=session.status!=='open'?'':`<details class="card try-custom-drill">
@@ -75,25 +98,38 @@ export function render(data,{escape,eventId,params}) {
       <label>Unidad<select name="unit"><option value="seconds">Segundos</option><option value="mph">mph</option>
         <option value="count">Conteo</option><option value="meters">Metros</option>
         <option value="feet">Pies</option><option value="score">Puntuación / 10</option>
-        <option value="percent">Porcentaje</option><option value="reps">Repeticiones</option></select></label>
+        <option value="percent">Porcentaje</option><option value="reps">Repeticiones</option>
+        <option value="degrees">Grados (°)</option></select></label>
       <label>Intentos<input type="number" name="attempts" value="3" min="1" max="12" required></label>
-      <label>Mejor valor<select name="best"><option value="max">Mayor marca</option><option value="min">Menor marca</option></select></label>
+      <label>Resultado principal<select name="best"><option value="max">Mayor marca</option>
+        <option value="min">Menor marca</option><option value="avg">Promedio</option></select></label>
+      <label>Mínimo permitido<input type="number" name="minValue" step="any" placeholder="Opcional"></label>
+      <label>Máximo permitido<input type="number" name="maxValue" step="any" placeholder="Opcional"></label>
       <button class="btn red">Agregar prueba</button>
     </form></details>`;
   const playerRows=drill?eligible.map(p=>{
     const scores=attempts.filter(a=>a.player_id===p.id&&a.drill_id===drill.id);
-    const record=best(scores,drill);
+    const record=summarize(scores,drill);
+    const readOnly=session.status!=='open'||!drill.enabled;
     const attemptsForms=Array.from({length:drill.attempts_allowed},(_,index)=>{
       const n=index+1,a=scores.find(item=>item.attempt_no===n);
       return `<form class="try-attempt" data-action="tryout-attempt" data-player="${escape(p.id)}">
         <input type="hidden" name="drillId" value="${escape(drill.id)}">
         <input type="hidden" name="attemptNo" value="${n}">
-        <label>Intento ${n}<input name="value" type="number" min="0"
+        <label>Intento ${n}<input name="value" type="number"
+          ${drill.unit==='degrees'?'min="-90" max="90"':
+            'min="'+escape(drill.min_value??0)+'"'+(drill.max_value!=null?' max="'+escape(drill.max_value)+'"':'')}
           step="${['count','reps'].includes(drill.unit)?'1':'any'}"
-          value="${escape(a?.value??'')}" ${session.status==='open'?'required':'disabled'}></label>
-        <details><summary>Nota</summary><input name="note" maxlength="300"
-          value="${escape(a?.note??'')}" placeholder="Observación" ${session.status==='open'?'':'disabled'}></details>
-        ${session.status==='open'?`<div class="try-attempt-buttons">
+          value="${escape(a?.is_valid===0?'':a?.value??'')}"
+          ${readOnly||a?.is_valid===0?'disabled':'required'}></label>
+        <label class="check try-valid">
+          <input type="checkbox" name="valid" ${!a||a.is_valid?'checked':''}
+            ${readOnly?'disabled':''}>Intento válido</label>
+        ${a?.is_valid===0?'<span class="try-invalid-badge">Inválido / sin lectura</span>':''}
+        <details><summary>Nota / motivo</summary><input name="note" maxlength="300"
+          value="${escape(a?.note??'')}" placeholder="Ej. foul, mal tiro, fallo de radar"
+          ${readOnly?'disabled':''}></details>
+        ${!readOnly?`<div class="try-attempt-buttons">
           <button class="btn light" type="submit">Guardar</button>
           ${a?'<button type="submit" name="delete" value="true" formnovalidate class="try-delete">Eliminar</button>':''}
         </div>`:''}</form>`;
@@ -101,8 +137,9 @@ export function render(data,{escape,eventId,params}) {
     return `<article class="card try-player">
       <div class="try-player-head"><div><strong>${escape(p.name)}</strong>
         <small>${escape(p.primary)}${p.secondary?' · '+escape(p.secondary):''}${p.team?' · '+escape(p.team):''}</small></div>
-        <div class="try-best"><small>${drill.best_by==='min'?'MENOR TIEMPO':'MEJOR MARCA'}</small>
-          <strong>${record===null?'—':display(record,drill.unit)}</strong></div></div>
+        <div class="try-best"><small>${drill.best_by==='avg'?'RESULTADO PROMEDIO':drill.best_by==='min'?'MENOR MARCA':'MEJOR MARCA'}</small>
+          <strong>${record.best===null?'—':display(record.best,drill.unit)}</strong>
+          <small>Prom. ${record.average===null?'—':display(record.average,drill.unit)} · ${record.valid} válidos${record.invalid?' · '+record.invalid+' inválidos':''}</small></div></div>
       <div class="try-attempt-list">${attemptsForms}</div></article>`;
   }).join(''):'';
   return `<div class="try-dashboard">
@@ -120,12 +157,13 @@ export function render(data,{escape,eventId,params}) {
         <div class="try-group-nav">${groupNav}</div>
         <div class="card try-drills"><div class="try-heading"><h3>Pruebas · ${GROUPS.find(x=>x[0]===group)?.[1]}</h3>
           <small>Selecciona una medición</small></div>
-          <div class="try-drill-nav">${drillNav||'<p>No hay pruebas para este grupo.</p>'}</div>${drillForm}</div>
+          <div class="try-drill-nav">${drillNav||'<p>No hay pruebas para este grupo.</p>'}</div>
+          ${drillSettings}${drillForm}</div>
         ${drill?`<div class="try-heading try-heading-player"><div><span class="eyebrow">REGISTRO POR JUGADOR</span>
           <h3>${escape(drill.name)}</h3>
           <small>${drill.attempts_allowed} intentos · Unidad ${UNITS[drill.unit]||drill.unit} ·
-            ${drill.best_by==='min'?'menor resultado':'mayor resultado'} = mejor marca</small></div>
-          <span class="tag blue">${eligible.length} jugadores</span></div>
+            ${drill.best_by==='min'?'menor resultado = mejor marca':drill.best_by==='avg'?'promedio de intentos válidos':'mayor resultado = mejor marca'}</small></div>
+          <span class="tag blue">${eligible.length} jugadores${drill.enabled?'':' · prueba desactivada'}</span></div>
           <div class="try-players">${playerRows||'<div class="card try-blank"><h3>No hay jugadores elegibles</h3><p>Aprueba jugadores con esta posición en Solicitudes.</p></div>'}</div>`:''}
       </section></div></div>`;
 }
