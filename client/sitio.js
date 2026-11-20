@@ -10,7 +10,7 @@ export function render(data, { escape }) {
   const contentColumns = (heading, keys) => `<section class="card site-settings-panel">
     <div class="site-settings-heading"><h3>${heading}</h3><p>Configura los textos que se mostrarán según el idioma del visitante.</p></div>
     <div class="site-settings-languages">
-      ${['Es', 'En'].map(language => `<div class="site-language-column" data-no-translate>
+      ${['Es', 'En'].map(language => `<div class="site-language-column">
         <h4><span class="site-language-code">${language === 'Es' ? 'ES' : 'EN'}</span>
           ${language === 'Es' ? 'Español' : 'English'}</h4>
         ${keys.map(([key, label, kind, max]) => field(key + language, label, kind, max)).join('')}
