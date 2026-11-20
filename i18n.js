@@ -432,6 +432,98 @@
     'Volver a administración del sitio': 'Back to website administration'
   });
 
+  Object.assign(translations, {
+    'Tryouts y juego': 'Tryouts and game',
+    'TRYOUTS / SHOWCASE': 'TRYOUTS / SHOWCASE',
+    'SHOWCASE / TRYOUTS': 'SHOWCASE / TRYOUTS',
+    'EVALUACIÓN DE JUGADORES': 'PLAYER EVALUATIONS',
+    'Sesiones de evaluación por posición': 'Position-specific evaluation sessions',
+    'Nueva jornada de evaluación': 'New evaluation session',
+    'Jornadas': 'Sessions',
+    'Tryouts': 'Tryouts',
+    'Juego': 'Game',
+    'Tipo': 'Type',
+    'Nueva sesión': 'New session',
+    'Nueva jornada de evaluación': 'New evaluation session',
+    'Pruebas': 'Tests',
+    'Pruebas · General': 'Tests · General',
+    'Pruebas · Infield': 'Tests · Infield',
+    'Pruebas · Outfield': 'Tests · Outfield',
+    'Pruebas · Pitchers': 'Tests · Pitchers',
+    'Pruebas · Catchers': 'Tests · Catchers',
+    'Carrera de 60 yardas': '60-yard dash',
+    'Carrera de 30 yardas': '30-yard dash',
+    'Velocidad de salida del bate': 'Exit velocity',
+    'Velocidad de tiro del infield': 'Infield throwing velocity',
+    'Fildeo y control': 'Fielding and control',
+    'Tiro del jardín derecho al home': 'Right field to home throw',
+    'Velocidad de tiro del outfield': 'Outfield throwing velocity',
+    'Precisión al home (de 5)': 'Throwing accuracy to home (out of 5)',
+    'Velocidad de recta': 'Fastball velocity',
+    'Strikes en zona (de 10)': 'Strikes in zone (out of 10)',
+    'Pop time a segunda base': 'Pop time to second base',
+    'Velocidad del tiro del catcher': 'Catcher throwing velocity',
+    'Ponches (K)': 'Strikeouts (K)',
+    'Bases por bolas (BB)': 'Walks (BB)',
+    'Hits permitidos (H)': 'Hits allowed (H)',
+    'Hits conectados (H)': 'Hits (H)',
+    'Carreras impulsadas (RBI)': 'Runs batted in (RBI)',
+    'Jugadores aprobados': 'Approved players',
+    'Intentos guardados': 'Saved attempts',
+    'Jugadores evaluados': 'Players evaluated',
+    'Sin jugadores elegibles': 'No eligible players',
+    'Resultados por intento y posición': 'Results by attempt and position',
+    'Evaluaciones por intento y posición': 'Evaluations by attempt and position',
+    'Registro por jugador': 'Player scores',
+    'REGISTRO POR JUGADOR': 'PLAYER SCORES',
+    'Resultados privados': 'Private results',
+    'Visible en Media Center': 'Visible in Media Center',
+    'Publicar resultados para scouts': 'Publish results for scouts',
+    'Actualizar sesión': 'Update session',
+    'Abierta': 'Open',
+    'Cerrada': 'Closed',
+    'Selecciona una medición': 'Select a measurement',
+    'Agregar prueba': 'Add test',
+    'Agregar prueba personalizada': 'Add custom test',
+    'Posición': 'Position',
+    'Unidad': 'Unit',
+    'Número de intentos': 'Number of attempts',
+    'Intentos': 'Attempts',
+    'Mejor valor': 'Best value',
+    'Mayor marca': 'Highest value',
+    'Menor marca': 'Lowest value',
+    'Segundos': 'Seconds',
+    'Conteo': 'Count',
+    'Metros': 'Meters',
+    'Pies': 'Feet',
+    'Puntuación / 10': 'Score / 10',
+    'Repeticiones': 'Repetitions',
+    'Nota interna': 'Internal notes',
+    'Nota': 'Note',
+    'Observación': 'Observation',
+    'Observaciones de la jornada': 'Session notes',
+    'Crear sesión': 'Create session',
+    'General': 'General',
+    'Todos los grupos': 'All groups',
+    'Todas las posiciones del grupo': 'All group positions',
+    'Fase de tryouts': 'Tryouts phase',
+    'Fase de juego': 'Game phase',
+    'RESULTADOS DE SHOWCASE': 'SHOWCASE RESULTS',
+    'ESTADÍSTICAS DEL JUEGO': 'GAME STATISTICS',
+    'SCOUT REPORT · SHOWCASE': 'SCOUT REPORT · SHOWCASE',
+    'Ficha deportiva y resultados de tryouts ↗': 'Player profile and tryout results ↗',
+    'Actualizar resultados': 'Refresh results',
+    'Cargando resultados…': 'Loading results…',
+    'Mejor marca': 'Best mark',
+    'Resultados de': 'Results for',
+    'Jugadores': 'Players',
+    'Tiro al home': 'Throw to home',
+    'Juego · Estadísticas de partido': 'Game · Game statistics',
+    'Showcase · Pruebas físicas y de campo': 'Showcase · Skills evaluations',
+    'Tryouts completados.': 'Tryouts completed.',
+    'Ya puedes crear una sesión de Juego y registrar las estadísticas del partido.': 'You can now create a Game session and record game statistics.'
+  });
+
   const attributeTranslations = ['placeholder', 'aria-label', 'title'];
   const langCookie = document.cookie.match(/(?:^|;\s*)canelo_lang=(es|en)(?:;|$)/)?.[1] || 'es';
   const queryLocale = new URL(location.href).searchParams.get('lang');
@@ -450,6 +542,10 @@
     const duration = text.match(/^(\d+) DÍAS?$/);
     if (duration) return duration[1] + (duration[1] === '1' ? ' DAY' : ' DAYS');
     if (text === '1 SISTEMA') return '1 PLATFORM';
+    const trial = text.match(/^Intento (\d+)$/);
+    if (trial) return 'Attempt ' + trial[1];
+    const attempts = text.match(/^(\d+) intentos?$/);
+    if (attempts) return attempts[1] + (attempts[1] === '1' ? ' attempt' : ' attempts');
     return text;
   };
   // Display labels are not submitted as values: native options without a value
