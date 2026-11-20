@@ -3,7 +3,7 @@
  * The public site and administrative shell have distinct navigation and CSS.
  * This file intentionally does not own database mutations or authentication.
  */
-export function createViews({ root, getEvent, listEvents, db, escape }) {
+export function createViews({ root, getEvent, listEvents, db, escape, getSiteSettings = () => ({}) }) {
   function navigation(eventId, active, privateView = false) {
     const query = eventId ? '?event=' + encodeURIComponent(eventId) : '';
     if (!privateView) {
@@ -32,12 +32,13 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
       '<button type="submit" aria-label="Cerrar sesión de administrador">Cerrar sesión</button></form></nav>';
   }
   
-  function documentHead(title, privateView = false) {
+  function documentHead(title, privateView = false, seoDescription = '') {
     return root.slice(0, root.indexOf('</head>'))
       .replace('<title>Canelo Scout Invitational · MVP</title>',
         '<title>' + escape(title) + ' | Canelo Scout</title>') +
       '<link rel="stylesheet" href="' + (privateView ? '/operations.css' : '/public.css') +
-      '"><link rel="stylesheet" href="/shell.css"><script src="/i18n.js" defer></script></head>';
+      '"><link rel="stylesheet" href="/shell.css"><script src="/i18n.js" defer></script>' +
+      (seoDescription ? '<meta name="description" content="' + escape(seoDescription) + '">' : '') + '</head>';
   }
   
   function header(eventId = '', active = 'Inicio', privateView = false) {
@@ -48,8 +49,20 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
       navigation(eventId, active, privateView) + '</div></header>';
   }
   
-  function footer(privateView = false) {
+  function footer(privateView = false, siteOverride = null) {
     const year = new Date().getFullYear();
+    const site = siteOverride ?? getSiteSettings();
+    const localized = '<p data-site-es="' + escape(site.footerDescriptionEs ?? '') +
+      '" data-site-en="' + escape(site.footerDescriptionEn ?? '') + '">' +
+      escape(site.footerDescriptionEs ?? '') + '</p>';
+    const external = [
+      ['Instagram', site.instagramUrl], ['Facebook', site.facebookUrl],
+      ['YouTube', site.youtubeUrl]
+    ].filter(([, href]) => href);
+    const socialLinks = external.map(([name, href]) => '<a href="' + escape(href) +
+      '" rel="noopener noreferrer" target="_blank">' + name + ' ↗</a>').join('');
+    const email = site.contactEmail ?
+      '<a href="mailto:' + escape(site.contactEmail) + '">' + escape(site.contactEmail) + '</a>' : '';
     const links = privateView
       ? [['Eventos y configuración', '/admin/'], ['Solicitudes', '/admin/?vista=solicitudes'], ['Ver portal público', '/']]
       : [['Eventos', '/eventos'], ['Seguimiento', '/seguimiento'], ['Media Center', '/prensa']];
@@ -57,17 +70,16 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
       '<div class="footer-inner"><div class="footer-overview">' +
       '<div class="footer-wordmark"><span class="footer-symbol" aria-hidden="true">CS</span>' +
       '<div><strong>CANELO SCOUT</strong><small>PLATAFORMA DE SCOUTING</small></div></div>' +
-      '<p>' + (privateView ? 'Gestión de eventos, prospectos y operaciones deportivas.' :
-      'Conectamos a los atletas con nuevas oportunidades mediante eventos y perfiles deportivos.') +
-      '</p></div><div class="footer-col"><h2>NAVEGACIÓN</h2>' +
+      (privateView ? '<p>Gestión de eventos, prospectos y operaciones deportivas.</p>' : localized) +
+      '</div><div class="footer-col"><h2>NAVEGACIÓN</h2>' +
       links.map(([label, url]) => '<a href="' + url + '">' + escape(label) + '</a>').join('') +
       '</div><div class="footer-col footer-support"><h2>' +
       (privateView ? 'ORGANIZACIÓN' : 'PLATAFORMA') + '</h2>' +
       '<p>' + (privateView ? 'Área de acceso restringido para el equipo organizador.' :
       'Inscripción, seguimiento de solicitudes y perfiles autorizados para prensa y scouts.') +
       '</p>' +
-      (privateView ? '<a href="/admin/preview">Vista previa del formulario ↗</a>' :
-      '<a href="/admin/" class="footer-admin-link">Acceso administrativo ↗</a>') +
+      (privateView ? '<a href="/admin/?vista=sitio">Administración del sitio ↗</a>' :
+      '<div class="footer-site-links">' + email + socialLinks + '</div><a href="/admin/" class="footer-admin-link">Acceso administrativo ↗</a>') +
       '</div></div><div class="footer-bottom"><span>© ' + year +
       ' Canelo Scout. Todos los derechos reservados.</span><span>' +
       (privateView ? 'Panel organizador' : 'Eventos · Talento · Scouting') +
@@ -144,26 +156,47 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
     ).get(event.id));
   }
   
-  function presentationPage() {
+  function presentationPage({ settings = null, locale = 'es', preview = false } = {}) {
+    const site = settings ?? getSiteSettings();
+    const lang = locale === 'en' ? 'En' : 'Es';
+    const text = name => escape(site[name + lang] ?? '');
     let home = root.slice(root.indexOf('<main id="home"'), root.indexOf('<main id="register"'))
       .replace('<main id="home" class="view active">', '<main id="home" class="view active public-main">')
       .replace('<button class="btn red" onclick="go(\'register\')">Comenzar registro</button>',
         '<a class="btn red" href="/eventos">Comenzar registro</a>')
       .replace('<button class="btn white" onclick="go(\'admin\')">Ver centro de control</button>',
         '<a class="btn white" href="/#eventos">Ver eventos</a>')
+      .replace('🇺🇸 TRYOUT PARA BECAS · COLLEGE · HIGH SCHOOL', text('heroEyebrow'))
+      .replace('<h1>CANELO SCOUT <span>INVITATIONAL</span></h1>',
+        '<h1>' + text('heroTitle') + ' <span>' + text('heroAccent') + '</span></h1>')
+      .replace('Una sola plataforma para captar talento, validar solicitudes, completar equipos durante el evento y publicar perfiles deportivos listos para prensa y scouts.', text('heroDescription'))
+      .replace('DEL REGISTRO AL DIAMANTE', text('aboutTitle'))
+      .replace('El MVP acompaña al organizador antes, durante y después del evento. Cada dato se captura una vez y se reutiliza en toda la operación.', text('aboutDescription'))
       .replace(/7 y 8 de noviembre de 2026/g, 'Próximas ediciones');
+    if (site.heroImageUrl) {
+      home = home.replace('<div class="ticket-top">',
+        '<div class="ticket-top site-photo-ticket"><img class="site-hero-image" alt="" src="' +
+        escape(site.heroImageUrl) + '" loading="lazy">');
+    }
     const available = publicEvents();
     const featured = available[0];
     const days = featured ? Math.round((new Date(featured.ends) - new Date(featured.starts)) / 86400000) + 1 : null;
-    home = home.replace('Próximas ediciones · República Dominicana', featured ? escape(featured.name + ' · ' + featured.starts + ' — ' + featured.ends + ' · ' + featured.venue) : 'Consulta las próximas ediciones').replace('2 DÍAS', days ? days + (days === 1 ? ' DÍA' : ' DÍAS') : 'EDICIONES').replace('El MVP acompaña', 'La plataforma acompaña');
+    home = home.replace('Próximas ediciones · República Dominicana',
+      featured ? escape(featured.name + ' · ' + featured.starts + ' — ' + featured.ends + ' · ' + featured.venue) :
+        'Consulta las próximas ediciones')
+      .replace('2 DÍAS', days ? days + (days === 1 ? ' DÍA' : ' DÍAS') : 'EDICIONES');
     const catalog = '<section class="section event-catalog" id="eventos"><div class="wrap">' +
       '<div class="head"><div><span class="eyebrow">Canelo Scout</span><h2>EVENTOS</h2>' +
       '<p>Consulta las ediciones disponibles, las fechas y el proceso de inscripción.</p></div></div>' +
       (available.length ? '<div class="event-list">' + eventCards(available) + '</div>' :
         '<div class="card public-empty">Actualmente no hay eventos abiertos para inscripción.</div>') +
       '</div></section>';
-    return documentHead('Inicio') + '<body class="public-body">' + header('', 'Inicio') +
-      home + catalog + footer() + '</body></html>';
+    const banner = preview ? '<div class="site-preview-banner"><strong>VISTA PREVIA DEL BORRADOR</strong>' +
+      '<span>Estos cambios todavía no están publicados.</span>' +
+      '<a href="/admin/?vista=sitio">Volver a administración del sitio</a></div>' : '';
+    return documentHead(site['seoTitle' + lang] || 'Inicio', false, site['seoDescription' + lang]) +
+      '<body class="public-body">' + header('', 'Inicio') +
+      banner + home + catalog + footer(false, site) + '</body></html>';
   }
 
   return { navigation, html, registrationPage, presentationPage, publicEvents, eventCards };
