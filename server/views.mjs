@@ -11,18 +11,25 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
         ['Inicio', '/'],
         ['Eventos', '/eventos'],
         ['Media Center', '/prensa' + query],
-      ['Seguimiento', '/seguimiento']
+        ['Seguimiento', '/seguimiento']
       ];
       if (eventId && getEvent(eventId)?.accepting) links.push(['Inscribirme', '/registro' + query]);
       else if (listEvents().some(event => event.accepting)) links.push(['Inscribirme', '/eventos']);
+      links.push(['Administración', '/admin/']);
       return '<nav class="public-nav" aria-label="Navegación pública">' +
         links.map(([label, href]) => '<a href="' + escape(href) + '"' +
           (active === label ? ' aria-current="page"' : '') +
-          (label === 'Inscribirme' ? ' class="nav-cta"' : '') + '>' + label + '</a>').join('') + '</nav>';
+          (label === 'Inscribirme' ? ' class="nav-cta"' :
+            label === 'Administración' ? ' class="nav-admin-access"' : '') +
+          '>' + label + '</a>').join('') + '</nav>';
     }
-    // El back office utiliza su propio menú lateral; el encabezado solo enlaza al portal público.
-    return '<nav class="admin-top-nav" aria-label="Acceso al portal público">' +
-      '<a href="/" class="admin-portal-link">Ver portal público ↗</a></nav>';
+    // El menú lateral contiene las secciones; el encabezado agrupa cuenta, portal y cierre de sesión.
+    return '<nav class="admin-top-nav" aria-label="Acciones de la cuenta administrativa">' +
+      '<span class="admin-user"><span class="admin-user-avatar" aria-hidden="true">A</span>' +
+      '<span class="admin-user-label"><strong>Administrador</strong><small>Centro de control</small></span></span>' +
+      '<a href="/" class="admin-portal-link">Ver portal público ↗</a>' +
+      '<form class="admin-logout" action="/admin/logout" method="post">' +
+      '<button type="submit" aria-label="Cerrar sesión de administrador">Cerrar sesión</button></form></nav>';
   }
   
   function documentHead(title, privateView = false) {
@@ -41,10 +48,29 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
   }
   
   function footer(privateView = false) {
-    return '<footer class="' + (privateView ? '' : 'public-footer') +
-      '"><div class="wrap"><strong>CANELO SCOUT</strong>' +
-      '<p>' + (privateView ? 'Centro de control de eventos deportivos.' :
-      'Registro de jugadores, eventos y perfiles de scouting.') + '</p></div></footer>';
+    const year = new Date().getFullYear();
+    const links = privateView
+      ? [['Eventos y configuración', '/admin/'], ['Solicitudes', '/admin/?vista=solicitudes'], ['Ver portal público', '/']]
+      : [['Eventos', '/eventos'], ['Seguimiento', '/seguimiento'], ['Media Center', '/prensa']];
+    return '<footer class="site-footer ' + (privateView ? 'admin-footer' : 'public-footer') + '">' +
+      '<div class="footer-inner"><div class="footer-overview">' +
+      '<div class="footer-wordmark"><span class="footer-symbol" aria-hidden="true">CS</span>' +
+      '<div><strong>CANELO SCOUT</strong><small>PLATAFORMA DE SCOUTING</small></div></div>' +
+      '<p>' + (privateView ? 'Gestión de eventos, prospectos y operaciones deportivas.' :
+      'Conectamos a los atletas con nuevas oportunidades mediante eventos y perfiles deportivos.') +
+      '</p></div><div class="footer-col"><h2>NAVEGACIÓN</h2>' +
+      links.map(([label, url]) => '<a href="' + url + '">' + escape(label) + '</a>').join('') +
+      '</div><div class="footer-col footer-support"><h2>' +
+      (privateView ? 'ORGANIZACIÓN' : 'PLATAFORMA') + '</h2>' +
+      '<p>' + (privateView ? 'Área de acceso restringido para el equipo organizador.' :
+      'Inscripción, seguimiento de solicitudes y perfiles autorizados para prensa y scouts.') +
+      '</p>' +
+      (privateView ? '<a href="/admin/preview">Vista previa del formulario ↗</a>' :
+      '<a href="/admin/" class="footer-admin-link">Acceso administrativo ↗</a>') +
+      '</div></div><div class="footer-bottom"><span>© ' + year +
+      ' Canelo Scout. Todos los derechos reservados.</span><span>' +
+      (privateView ? 'Panel organizador' : 'Eventos · Talento · Scouting') +
+      '</span></div></footer>';
   }
   
   function html(res, title, content, script = '', options = {}) {
