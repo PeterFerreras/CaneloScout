@@ -384,6 +384,54 @@
     'Cargar fotografía': 'Upload photo'
   });
 
+  // The site settings editor stores each language independently.
+  Object.assign(translations, {
+    'SITIO WEB': 'WEBSITE',
+    'Administración del sitio': 'Website administration',
+    'Administración del sitio web': 'Website administration',
+    'Sitio web': 'Website',
+    'Configuración general': 'General settings',
+    'Contenido público, idiomas, enlaces y metadatos de búsqueda.': 'Public content, languages, links and search metadata.',
+    'GESTIÓN DE CONTENIDO': 'CONTENT MANAGEMENT',
+    'Modifica el portal público de Canelo Scout sin editar archivos de código. La configuración de eventos se mantiene independiente.': 'Edit the Canelo Scout public website without changing source code. Event settings remain independent.',
+    'Cambios sin publicar': 'Unpublished changes',
+    'Sitio actualizado': 'Site up to date',
+    'Última publicación:': 'Last published:',
+    'Vista previa del borrador ↗': 'Preview draft ↗',
+    'Ver sitio publicado ↗': 'View published site ↗',
+    'Portada del sitio': 'Website homepage',
+    'Configura los textos que se mostrarán según el idioma del visitante.': 'Configure the text displayed for each visitor language.',
+    'Español': 'Spanish',
+    'English': 'English',
+    'Etiqueta superior': 'Eyebrow',
+    'Título principal': 'Main title',
+    'Título destacado': 'Highlighted title',
+    'Descripción principal': 'Main description',
+    'Presentación institucional': 'About the organization',
+    'Título de la sección': 'Section heading',
+    'Descripción institucional': 'About text',
+    'Contenido del pie de página': 'Footer content',
+    'Descripción del portal': 'Website description',
+    'Posicionamiento SEO': 'Search engine optimization',
+    'Título de la página': 'Page title',
+    'Descripción para buscadores': 'Search description',
+    'Contacto, redes sociales e imagen': 'Contact, social media and image',
+    'Estos datos son comunes a las dos versiones del portal. Los enlaces externos deben comenzar con https://': 'These settings apply to both website languages. External links must begin with https://',
+    'Correo de contacto': 'Contact email',
+    'URL de imagen para la portada': 'Homepage image URL',
+    'Imagen de portada configurada': 'Configured homepage image',
+    'Sin imagen externa: se utilizará la composición gráfica original de Canelo Scout.': 'No external image: the original Canelo Scout artwork will be used.',
+    'Borradores y publicación': 'Drafts and publishing',
+    'Guardar borrador no altera lo que ven los visitantes. Publicar aplica los cambios al portal.': 'Saving a draft does not change the live website. Publishing makes the changes visible.',
+    'Guardar borrador': 'Save draft',
+    'Publicar cambios': 'Publish changes',
+    'Sitio publicado correctamente.': 'Website published successfully.',
+    'Borrador guardado correctamente.': 'Draft saved successfully.',
+    'VISTA PREVIA DEL BORRADOR': 'DRAFT PREVIEW',
+    'Estos cambios todavía no están publicados.': 'These changes are not published yet.',
+    'Volver a administración del sitio': 'Back to website administration'
+  });
+
   const attributeTranslations = ['placeholder', 'aria-label', 'title'];
   const langCookie = document.cookie.match(/(?:^|;\s*)canelo_lang=(es|en)(?:;|$)/)?.[1] || 'es';
   const queryLocale = new URL(location.href).searchParams.get('lang');
@@ -419,6 +467,12 @@
   }
   function translateElement(element) {
     if (!element || element.nodeType !== 1) return;
+    // Published editorial copy is stored in Spanish and English in SQLite.
+    // The client switches it without translating user-entered content.
+    if (element.hasAttribute('data-site-en')) {
+      const value = element.getAttribute('data-site-' + locale);
+      if (value !== null && element.textContent !== value) element.textContent = value;
+    }
     for (const attr of attributeTranslations) {
       const text = element.getAttribute(attr);
       if (text && translations[text]) element.setAttribute(attr, translate(text));
