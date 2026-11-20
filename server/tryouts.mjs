@@ -188,6 +188,29 @@ export function createTryouts(db) {
     return {id};
   }
 
+  function addStandardDrills(eventId,sessionId) {
+    const session=writable(eventId,sessionId);
+    const originals=new Set(db.prepare(
+      'SELECT name FROM tryout_drills WHERE session_id=?').all(sessionId).map(row=>row.name));
+    const catalog=session.kind==='game'?GAME_DRILLS:SHOWCASE_DRILLS;
+    const insert=db.prepare(
+      'INSERT INTO tryout_drills (id,session_id,group_key,position_key,name,unit,attempts_allowed,best_by,sort_order,max_value) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    const starting=db.prepare(
+      'SELECT COALESCE(MAX(sort_order),-1)+1 AS next FROM tryout_drills WHERE session_id=?').get(sessionId).next;
+    let added=0;
+    db.exec('BEGIN');
+    try {
+      for (const [group,position,title,unit,count,best,maxValue] of catalog) {
+        if (originals.has(title)) continue;
+        insert.run(randomUUID(),sessionId,group,position,title,unit,count,best,starting+added,maxValue??null);
+        added++;
+      }
+      db.exec('COMMIT');
+    } catch(e) {db.exec('ROLLBACK');throw e;}
+    if (added) db.prepare('UPDATE tryout_sessions SET updated_at=? WHERE id=?').run(stamp(),sessionId);
+    return {added,total:catalog.length};
+  }
+
   function createDrill(eventId,sessionId,input) {
     writable(eventId,sessionId);
     const name=trimmed(input?.name,110), group=input?.group,position=input?.position??'all';
@@ -323,5 +346,5 @@ export function createTryouts(db) {
       sessions:results,updatedAt:results.reduce((date,s)=>s.updated_at>date?s.updated_at:date,'')};
   }
 
-  return {list,createSession,createDrill,updateDrill,setSession,record,publicPlayer};
+  return {list,createSession,createDrill,addStandardDrills,updateDrill,setSession,record,publicPlayer};
 }
