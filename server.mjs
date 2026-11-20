@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import QRCode from 'qrcode';
 import { updateOperation } from './server/workflow.mjs';
 import { createViews } from './server/views.mjs';
+import { renderLoginPage } from './server/login-view.mjs';
 
 const adminPassword = process.env.ADMIN_PASSWORD;
 const port = Number(process.env.PORT ?? 8091);
@@ -177,7 +178,25 @@ const redirect = (res, location) => {
   res.writeHead(303, { Location: location });
   return res.end();
 };
-let failedLogins = [];
+// Limitar intentos fallidos por dirección del socket, evitando bloquear a todos los usuarios.
+// Nunca confiar en X-Forwarded-For sin configurar explícitamente un proxy de confianza.
+const loginFailures = new Map();
+const loginWindowMs = 60_000;
+const loginMaxFailures = 8;
+function recentFailures(remoteAddress, now) {
+  const times = (loginFailures.get(remoteAddress) ?? []).filter(time => now - time < loginWindowMs);
+  if (times.length) loginFailures.set(remoteAddress, times);
+  else loginFailures.delete(remoteAddress);
+  return times;
+}
+function recordFailedLogin(remoteAddress, now) {
+  if (loginFailures.size > 512) {
+    for (const [ip] of loginFailures) recentFailures(ip, now);
+  }
+  const times = recentFailures(remoteAddress, now);
+  times.push(now);
+  loginFailures.set(remoteAddress, times);
+}
 
 function loginTarget(value) {
   if (typeof value !== 'string' || !/^\/admin\/(?:preview)?(?:\?|$)/.test(value)) return '/admin/';
@@ -185,34 +204,8 @@ function loginTarget(value) {
 }
 
 function loginPage(res, error = '', next = '/admin/') {
-  const head = root.slice(0, root.indexOf('</head>'))
-    .replace('<title>Canelo Scout Invitational · MVP</title>', '<title>Iniciar sesión | Canelo Scout</title>');
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  return res.end(`${head}<style>
-    .login-brand{color:inherit;text-decoration:none}
-    .login-main{min-height:calc(100vh - 86px);padding:48px 20px;background:var(--p);display:grid;place-items:center}
-    .login-grid{width:100%;max-width:440px;padding:0}
-    .login-main h1{font:36px Anton;color:var(--n);margin:6px 0 24px}
-    .login-form{color:var(--i);padding:clamp(24px,5vw,40px);box-shadow:0 16px 50px #071b3d12}
-    .login-form label{display:block;font-weight:700;margin-bottom:6px}
-    .login-form input:not([type=hidden]){width:100%;padding:12px;border:1px solid var(--l);border-radius:8px}
-    .login-return{display:block;text-align:center;margin-top:22px;color:var(--b);text-decoration:none}
-    .login-main .login-error{color:#a70d28;background:#fde2e7;padding:10px;font-size:14px;border-radius:8px}
-    .login-form .field{margin-bottom:16px}
-    .login-form .btn{width:100%;margin-top:6px}
-    @media(max-width:720px){.login-grid{grid-template-columns:1fr}}
-    </style></head><body><div class="stripe"></div>
-    <header><div class="nav"><a class="brand login-brand" href="/">
-    <span class="mark" aria-hidden="true">CS</span><span><small>PLATAFORMA OFICIAL</small><strong>CANELO SCOUT</strong></span></a></div></header>
-    <main class="login-main"><div class="login-grid">
-    <form class="card login-form" method="post" action="/admin/login">
-    <input type="hidden" name="next" value="${escape(next)}">
-    <span class="eyebrow">Panel organizador</span><h1>Iniciar sesión</h1>
-    ${error ? `<p class="login-error" role="alert">${escape(error)}</p>` : ''}
-    <div class="field"><label for="login-user">Usuario</label><input id="login-user" name="username" autocomplete="username" required maxlength="80" autofocus></div>
-    <div class="field"><label for="login-password">Contraseña</label><input id="login-password" name="password" type="password" autocomplete="current-password" required maxlength="512"></div>
-    <button class="btn red">Entrar al panel</button></form><a class="login-return" href="/">← Volver a Canelo Scout</a>
-    </div></main></body></html>`);
+  return res.end(renderLoginPage({ root, escape, error, next }));
 }
 
 async function login(req, res) {
@@ -226,10 +219,11 @@ async function login(req, res) {
     return loginPage(res, 'No se pudo leer el formulario.');
   }
   const now = Date.now();
-  failedLogins = failedLogins.filter(time => now - time < 60_000);
-  if (failedLogins.length >= 8) {
+  const loginAddress = req.socket.remoteAddress ?? 'unknown';
+  if (recentFailures(loginAddress, now).length >= loginMaxFailures) {
     res.statusCode = 429;
-    return loginPage(res, 'Hubo varios intentos fallidos. Espera un minuto.');
+    res.setHeader('Retry-After', '60');
+    return loginPage(res, 'Se alcanzó el límite de intentos. Inténtalo nuevamente en un minuto.');
   }
   let size = 0;
   const chunks = [];
@@ -243,13 +237,20 @@ async function login(req, res) {
   }
   const form = new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
   const next = loginTarget(form.get('next'));
-  if (form.get('username') !== 'admin' ||
-      !timingSafeEqual(passwordDigest, digest(form.get('password') ?? ''))) {
-    failedLogins.push(now);
+  const username = form.get('username')?.trim() ?? '';
+  const password = form.get('password') ?? '';
+  if (!/^[A-Za-z0-9._-]{1,80}$/.test(username) ||
+      password.length < 12 || password.length > 512) {
+    recordFailedLogin(loginAddress, now);
+    res.statusCode = 422;
+    return loginPage(res, 'Completa ambos campos con valores válidos e inténtalo nuevamente.', next);
+  }
+  if (username !== 'admin' || !timingSafeEqual(passwordDigest, digest(password))) {
+    recordFailedLogin(loginAddress, now);
     res.statusCode = 401;
     return loginPage(res, 'El usuario o la contraseña son incorrectos.', next);
   }
-  failedLogins = [];
+  loginFailures.delete(loginAddress);
   sessions.delete(sessionToken(req));
   for (const [token, expiry] of sessions) {
     if (expiry <= now) sessions.delete(token);
@@ -396,7 +397,9 @@ const assets = new Map([
   ['/registration.js', [registrationScript, 'text/javascript']],
   ['/operations.js', [operationsScript, 'text/javascript']],
   ['/operations.css', [readFileSync(new URL('./operations.css', import.meta.url)), 'text/css']],
-  ['/public.css', [readFileSync(new URL('./public.css', import.meta.url)), 'text/css']]
+  ['/public.css', [readFileSync(new URL('./public.css', import.meta.url)), 'text/css']],
+  ['/login.css', [readFileSync(new URL('./login.css', import.meta.url)), 'text/css']],
+  ['/login.js', [readFileSync(new URL('./login.js', import.meta.url)), 'text/javascript']]
 ]);
 
 createServer(async (req, res) => {
