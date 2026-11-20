@@ -206,7 +206,7 @@ function recordFailedLogin(remoteAddress, now) {
 }
 
 function loginTarget(value) {
-  if (typeof value !== 'string' || !/^\/admin\/(?:preview)?(?:\?|$)/.test(value)) return '/admin/';
+  if (typeof value !== 'string' || !/^\/admin\/(?:preview|site\/preview)?(?:\?|$)/.test(value)) return '/admin/';
   return value.split('#')[0];
 }
 
