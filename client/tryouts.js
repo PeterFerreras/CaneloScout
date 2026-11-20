@@ -16,7 +16,7 @@ const display=(n,unit)=>Number(n).toLocaleString('es-DO',{maximumFractionDigits:
   (UNITS[unit]?' '+UNITS[unit]:'');
 
 export function render(data,{escape,eventId,params}) {
-  const {sessions,session,drills,attempts,players,groups,stats}=data;
+  const {sessions,session,drills,attempts,players,groups,stats,canCreateGame,phase}=data;
   const group=GROUPS.some(([key])=>key===params.get('group'))?params.get('group'):'general';
   const list=drills.filter(d=>d.group_key===group);
   const drill=list.find(d=>d.id===params.get('drill'))||list[0];
@@ -27,10 +27,17 @@ export function render(data,{escape,eventId,params}) {
       <label>Nombre<input name="name" maxlength="100" required placeholder="Ej. Showcase Día 1"></label>
       <label>Fecha<input name="date" type="date" required value="${new Date().toISOString().slice(0,10)}"></label>
       <label>Tipo<select name="kind"><option value="showcase">Showcase · Pruebas físicas y de campo</option>
-        <option value="game">Juego · Estadísticas de partido</option></select></label>
+        <option value="game" ${canCreateGame?"":"disabled"}>Juego · Estadísticas de partido ${canCreateGame?"":"(termina primero los tryouts)"}</option></select></label>
       <label>Nota interna<input name="note" maxlength="500" placeholder="Observaciones de la jornada"></label>
     </div><button class="btn red">Crear sesión</button></form>`;
-  if(!session) return `<div class="try-dashboard"><section class="card try-hero">
+  const phaseRail = `<nav class="try-phase-rail" aria-label="Orden del showcase">
+      <div class="try-phase ${phase==='game'?'completed':'current'}"><strong>01</strong>
+        <span><b>TRYOUTS</b><small>Pruebas físicas, pitcheo y tiros</small></span></div>
+      <span class="try-phase-arrow" aria-hidden="true">→</span>
+      <div class="try-phase ${phase==='game'?'current':phase==='ready_for_game'?'ready':''}"><strong>02</strong>
+        <span><b>JUEGO</b><small>Ponches (K), hits y RBI</small></span></div>
+    </nav>`;
+  if(!session) return `<div class="try-dashboard">${phaseRail}<section class="card try-hero">
     <span class="eyebrow">TRYOUTS / SHOWCASE</span>
     <h3>Sesiones de evaluación por posición</h3>
     <p>Organiza infield, outfield, pitchers y catchers; registra cada intento y conserva el historial deportivo.</p>
@@ -101,9 +108,11 @@ export function render(data,{escape,eventId,params}) {
   return `<div class="try-dashboard">
     <header class="card try-hero"><div><span class="eyebrow">SHOWCASE / TRYOUTS</span>
       <h3>Evaluaciones por intento y posición</h3>
-      <p>Las pruebas de los pitchers son específicas. Ponches (K) es una estadística de juego, no velocidad de lanzamiento.</p></div>
+      <p>Fase 1: mediciones y varios intentos por jugador. Fase 2: estadísticas del juego; los ponches (K) se registran solamente durante el partido.</p></div>
       <a class="btn light" target="_blank" rel="noopener" href="/prensa?event=${encodeURIComponent(eventId)}">Media Center ↗</a></header>
+    ${phaseRail}
     <div class="try-metrics">${metrics}</div>
+    ${phase==='ready_for_game'?'<div class="card try-next-phase"><strong>Tryouts completados.</strong> Ya puedes crear una sesión de Juego y registrar las estadísticas del partido.</div>':''}
     <div class="try-workspace"><aside class="try-sessions card"><h3>Jornadas</h3>
       <div class="try-session-links">${sessionsNav}</div>
       <details class="try-new-session"><summary>+ Nueva sesión</summary>${createSession}</details></aside>
