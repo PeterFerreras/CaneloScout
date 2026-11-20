@@ -58,7 +58,14 @@ CaneloScout separa dos fases **obligatorias y consecutivas** por evento:
 1. **Tryouts:** el organizador crea una sesión de evaluación; el sistema incluye pruebas de carreras, fildeo, tiro del jardín derecho al home y pruebas de lanzadores y catchers. Cada jugador aprobado puede tener varios intentos registrados por prueba. Se preservan todos los resultados, se calcula la mejor marca y se pueden añadir nuevas pruebas configurables.
 2. **Juego:** se habilita cuando las sesiones de tryouts están cerradas. Los ponches (K) son **strikeouts**, una estadística del partido, distinta de los tryouts. Hay pruebas de juego independientes (K, BB, hits, RBI). No se pueden crear nuevos tryouts después de iniciar el juego.
 
-Las mediciones se guardan por **evento → sesión → prueba → jugador → intento** en nuevas tablas SQLite, sin alterar las mediciones o datos existentes. El panel permite mantener una sesión abierta durante la captura y publicar u ocultar sus resultados.
+Las mediciones se guardan por **evento → sesión → prueba → jugador → intento** en nuevas tablas SQLite, sin alterar las mediciones o datos existentes.
+El catálogo inicial de la fase de tryouts abarca carreras (60, 30 y split de 10 yardas; home a primera), bateo (exit velocity, velocidad del bate, ángulo de salida y distancia), infield, outfield, pitcheo (recta, curva, slider, cambio y strikes en zona) y catcher (pop time, brazo, precisión, recepción y bloqueo). Son pruebas habituales y configurables, no un estándar universal.
+
+**Gestión de intentos:** cada prueba permite ajustar su número de repeticiones, activar/desactivar sin borrar resultados, asignar límites mínimo/máximo y elegir si la marca principal es la mayor, la menor o el promedio. Los intentos pueden registrarse como **válidos** o **inválidos** (foul, tiro defectuoso, falta de lectura), conservando una nota interna. Los inválidos no influyen en el promedio ni en la mejor marca. La sesión y cada intento quedan almacenados en SQLite.
+
+Las sesiones creadas antes de ampliar el catálogo pueden recuperar las pruebas nuevas mediante **«Añadir pruebas estándar faltantes»**: solo agrega las que no existan y no modifica las anteriores. Las sesiones cerradas no admiten edición.
+
+El Media Center muestra, para perfiles autorizados y sesiones publicadas, la **mejor marca, el promedio, la cantidad de intentos válidos e inválidos y cada intento numerado**, sin exponer las notas internas. El panel permite mantener una sesión abierta durante la captura y publicar u ocultar sus resultados.
 
 El **Media Center** tiene filtros por grupos de posiciones y fichas de jugadores: resume sus mejores marcas, desglosa cada intento y muestra los resultados de tryouts **primero** y los del juego **después**. La ficha se refresca cada 30 segundos cuando está abierta y la pestaña es visible (no es una transmisión jugada a jugada). Solo se sirven perfiles aprobados, con pago validado y consentimiento para publicar, y sesiones marcadas como publicadas; los datos y observaciones internos no aparecen.
 
