@@ -8,6 +8,7 @@ import QRCode from 'qrcode';
 import { updateOperation } from './server/workflow.mjs';
 import { createViews } from './server/views.mjs';
 import { renderLoginPage } from './server/login-view.mjs';
+import { createSiteSettings } from './server/site-settings.mjs';
 
 const adminPassword = process.env.ADMIN_PASSWORD;
 const port = Number(process.env.PORT ?? 8091);
@@ -79,6 +80,8 @@ if (!db.prepare('PRAGMA table_info(operations)').all().some(c => c.name === 'pay
   db.exec("UPDATE operations SET payment_status = 'validated' WHERE status = 'approved'");
 }
 db.exec('INSERT OR IGNORE INTO operations (id) SELECT id FROM registrations');
+const siteSettings = createSiteSettings(db);
+const requestLocale = req => /(?:^|;\s*)canelo_lang=en(?:;|$)/.test(req.headers.cookie ?? '') ? 'en' : 'es';
 
 const required = ['name', 'birth', 'nationality', 'city', 'phone', 'email', 'primary',
   'bats', 'throws', 'academy', 'level', 'attendance', 'passport', 'payref'];
@@ -264,7 +267,7 @@ const escape = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '
 const getEvent = id => db.prepare('SELECT * FROM events WHERE id = ?').get(id ?? '');
 const listEvents = () => db.prepare('SELECT * FROM events ORDER BY starts DESC, name').all();
 const { html, registrationPage, presentationPage, publicEvents, eventCards } =
-  createViews({ root, getEvent, listEvents, db, escape });
+  createViews({ root, getEvent, listEvents, db, escape, getSiteSettings: siteSettings.publicSite });
 
 function roster(eventId) {
   return db.prepare(`SELECT r.id, r.event_id, r.created_at, r.details, o.status, o.note, o.team_id, o.jersey,
@@ -292,7 +295,7 @@ async function admin(req, res, path, url) {
   }
   if (!signedIn) {
     sessions.delete(token);
-    if (req.method === 'GET' && ['/admin/', '/admin/preview'].includes(path)) {
+    if (req.method === 'GET' && ['/admin/', '/admin/preview', '/admin/site/preview'].includes(path)) {
       return redirect(res, '/admin/login?next=' + encodeURIComponent(path + url.search));
     }
     return json(res, 401, { error: 'Acceso administrativo requerido.' });
@@ -311,6 +314,17 @@ async function admin(req, res, path, url) {
     const active = ({ solicitudes: 'Solicitudes', rosters: 'Profundidad', operacion: 'Operación', prensa: 'Publicación' })[url.searchParams.get('vista')] ?? 'Configuración';
     return html(res, 'Panel de eventos', '<div id="operations"></div>',
       '<script type="module" src="/operations.js"></script>', { eventId, active, privateView: true, hideTitle: true });
+  }
+  if (path === '/admin/site' && req.method === 'GET') return json(res, 200, siteSettings.state());
+  if (path === '/admin/site' && req.method === 'POST') {
+    const input = await readJson(req, 20000);
+    if (!['save', 'publish'].includes(input?.action)) return invalid(res, 'Acción de configuración no válida.');
+    const result = siteSettings.save(input, input.action === 'publish');
+    return result.error ? invalid(res, result.error) : json(res, 200, result.value);
+  }
+  if (path === '/admin/site/preview' && req.method === 'GET') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.end(presentationPage({ settings: siteSettings.state().draft, locale: requestLocale(req), preview: true }));
   }
   if (path === '/admin/events' && req.method === 'GET') return json(res, 200, listEvents());
   const event = getEvent(url.searchParams.get('event'));
@@ -396,6 +410,7 @@ const assets = new Map([
   ...['solicitudes', 'profundidad', 'operacion', 'publicacion'].map(name => ['/client/' + name + '.js', [readFileSync(new URL('./client/' + name + '.js', import.meta.url)), 'text/javascript']]),
   ['/registration.js', [registrationScript, 'text/javascript']],
   ['/operations.js', [operationsScript, 'text/javascript']],
+  ['/client/sitio.js', [readFileSync(new URL('./client/sitio.js', import.meta.url)), 'text/javascript']],
   ['/operations.css', [readFileSync(new URL('./operations.css', import.meta.url)), 'text/css']],
   ['/public.css', [readFileSync(new URL('./public.css', import.meta.url)), 'text/css']],
   ['/shell.css', [readFileSync(new URL('./shell.css', import.meta.url)), 'text/css']],
@@ -422,7 +437,7 @@ createServer(async (req, res) => {
     }
     if (req.method === 'GET' && path === '/') {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.end(presentationPage());
+      return res.end(presentationPage({ locale: requestLocale(req) }));
     }
     const event = getEvent(url.searchParams.get('event'));
     if (req.method === 'GET' && path === '/corregir') {
