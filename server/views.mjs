@@ -36,7 +36,8 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
     return root.slice(0, root.indexOf('</head>'))
       .replace('<title>Canelo Scout Invitational · MVP</title>',
         '<title>' + escape(title) + ' | Canelo Scout</title>') +
-      '<link rel="stylesheet" href="' + (privateView ? '/operations.css' : '/public.css') + '"></head>';
+      '<link rel="stylesheet" href="' + (privateView ? '/operations.css' : '/public.css') +
+      '"><link rel="stylesheet" href="/shell.css"></head>';
   }
   
   function header(eventId = '', active = 'Inicio', privateView = false) {
@@ -77,7 +78,7 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
     const privateView = !!options.privateView;
     const eventId = options.eventId ?? '';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.end(documentHead(title, privateView) + '<body>' +
+    return res.end(documentHead(title, privateView) + '<body class="' + (privateView ? 'admin-body' : 'public-body') + '">' +
       header(eventId, options.active || 'Inicio', privateView) +
       '<main class="' + (privateView ? 'workspace' : 'public-main') + ' ' +
         (options.fullWidth ? '' : 'app') + '">' +
@@ -113,7 +114,7 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
     if (preview) content = content.replace('<div id="formarea"',
       '<div class="notice" role="note">Vista previa: puedes recorrer el formulario sin guardar solicitudes.</div><div id="formarea"');
     return documentHead(preview ? 'Vista previa de inscripción' : event.name + ' · Inscripción') +
-      '<body>' + header(event.id, 'Inscribirme') + content + footer() +
+      '<body class="public-body">' + header(event.id, 'Inscribirme') + content + footer() +
       '<div id="toast" class="toast" role="status" aria-live="polite"></div>' +
       '<div id="active-event" data-id="' + escape(event.id) + '" data-starts="' +
       escape(event.starts) + '" data-correction="' + escape(correctionCode) + '" data-preview="' + preview + '" hidden></div>' +
@@ -161,7 +162,7 @@ export function createViews({ root, getEvent, listEvents, db, escape }) {
       (available.length ? '<div class="event-list">' + eventCards(available) + '</div>' :
         '<div class="card public-empty">Actualmente no hay eventos abiertos para inscripción.</div>') +
       '</div></section>';
-    return documentHead('Inicio') + '<body>' + header('', 'Inicio') +
+    return documentHead('Inicio') + '<body class="public-body">' + header('', 'Inicio') +
       home + catalog + footer() + '</body></html>';
   }
 
