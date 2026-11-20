@@ -30,8 +30,8 @@ function validDate(value) {
     Number.isFinite(+date) && date.toISOString().slice(0, 10) === value;
 }
 
-if (!adminPassword || adminPassword.length < 12) {
-  throw new Error('Define ADMIN_PASSWORD (mínimo 12 caracteres).');
+if (!adminPassword || adminPassword.length < 12 || adminPassword.length > 512) {
+  throw new Error('Define ADMIN_PASSWORD con entre 12 y 512 caracteres.');
 }
 
 mkdirSync(databaseDirectory, { recursive: true });
