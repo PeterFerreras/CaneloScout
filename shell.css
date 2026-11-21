@@ -78,3 +78,30 @@ header .nav.admin-header .admin-top-nav{width:100%;justify-content:space-between
   header .nav.admin-header .admin-top-nav{flex-wrap:wrap}
   header .nav.admin-header .language-switch{order:0}
 }
+
+/* Interior section headings scroll with their own content. */
+main header {
+  position: static;
+  top: auto;
+  z-index: auto;
+}
+header .nav.admin-header .admin-top-nav {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+@media (max-width: 600px) {
+  body.admin-body > header,
+  body.public-body > header {
+    position: static;
+  }
+  header .nav.admin-header .admin-top-nav {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .admin-user {
+    flex: 1 1 120px;
+  }
+  .admin-top-nav a.admin-portal-link {
+    white-space: normal;
+  }
+}

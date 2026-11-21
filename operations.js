@@ -151,6 +151,10 @@ async function load() {
     const query='tryouts?event='+encodeURIComponent(eventId)+
       (params.get('session')?'&session='+encodeURIComponent(params.get('session')):'');
     const data=await api(query);
+    const events=await api('events');
+    const eventFilter='<div class="admin-filter-bar"><label>Evento<select id="try-event-filter">' +
+      events.map(event=>'<option value="'+escape(event.id)+'" '+selected(eventId,event.id)+'>'+escape(event.name)+'</option>').join('') +
+      '</select></label></div>';
     if(data.session && !params.get('session')) {
       // Keep the selected session in the URL so edits always target the correct one.
       const q=new URLSearchParams(params);q.set('session',data.session.id);
@@ -161,8 +165,11 @@ async function load() {
     mount.innerHTML = '<div class="dash ops-dash admin-shell">' + controlMenu() +
       '<section class="admin-content"><div class="admin-breadcrumb"><a href="/admin/">Administración</a> / Tryouts y Juego</div>' +
       '<div class="apphead"><div><span class="eyebrow">EVALUACIÓN DE JUGADORES</span>' +
-      '<h2 class="display">Tryouts y juego</h2></div></div><div class="admin-module">' +
+      '<h2 class="display">Tryouts y juego</h2></div></div>'+eventFilter+'<div class="admin-module">' +
       tryoutScreen(data,{escape,eventId,params}) + '</div></section></div>';
+    mount.querySelector('#try-event-filter').addEventListener('change', event=>{
+      location.assign('/admin/?vista=tryouts&event='+encodeURIComponent(event.target.value));
+    });
     // Custom drill position choices only show positions matching the selected group.
     mount.querySelectorAll('[data-try-group]').forEach(groupSelect=>{
       const position=groupSelect.form.querySelector('[data-try-position]');
@@ -174,6 +181,7 @@ async function load() {
       groupSelect.addEventListener('change',adjust);adjust();
     });
     mount.querySelectorAll('.try-attempt .try-valid input').forEach(check=>{
+      if(check.disabled)return;
       const input=check.closest('form').querySelector('input[name="value"]');
       const adjust=()=>{input.disabled=!check.checked;input.required=check.checked};
       check.addEventListener('change',adjust);

@@ -447,3 +447,183 @@ header .nav{flex-wrap:wrap}
 .workspace .try-standard-action button{font-weight:800;padding:10px 14px;border-radius:8px;cursor:pointer}
 .workspace .try-standard-action small{color:var(--m);font-size:11px;max-width:470px;line-height:1.4}
 @media(max-width:700px){.workspace .try-drill-settings form{grid-template-columns:1fr}}
+
+/* Shared layout boundaries for populated modules and small screens. */
+main header {
+  position: static;
+  top: auto;
+  z-index: auto;
+}
+body.admin-body > header,
+body.public-body > header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.workspace .admin-content,
+.workspace .admin-module,
+.workspace .try-main,
+.workspace .try-player,
+.workspace .try-attempt,
+.workspace .publish-player,
+.workspace .event-form {
+  min-width: 0;
+}
+.workspace :is(h2, h3, h4, p, a, label, summary, strong) {
+  overflow-wrap: anywhere;
+}
+.workspace .btn {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+.workspace input:not([type=checkbox]),
+.workspace select,
+.workspace textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+.workspace .try-status-form {
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 138px);
+  align-items: start;
+}
+.workspace .try-status-form > div:first-child {
+  grid-column: 1 / -1;
+}
+.workspace .try-status-form > button {
+  justify-self: end;
+}
+.workspace .try-status-form label {
+  margin: 0;
+}
+.workspace .try-status-form .check {
+  align-self: center;
+}
+.workspace .try-status-form > button {
+  grid-column: 2;
+}
+.workspace .try-attempt {
+  display: flex;
+  flex-direction: column;
+}
+.workspace .try-attempt-buttons {
+  margin-top: auto;
+  padding-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.workspace .try-attempt-buttons button {
+  flex: 1 1 70px;
+  min-width: 0;
+}
+.workspace .try-heading,
+.workspace .try-player-head {
+  flex-wrap: wrap;
+}
+.workspace .try-hero {
+  align-items: flex-start;
+}
+.workspace .try-hero > div {
+  min-width: 0;
+}
+.workspace .try-hero > a {
+  flex: 0 0 auto;
+}
+.workspace .try-session-link {
+  overflow-wrap: anywhere;
+}
+.workspace .try-drill-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+}
+.workspace .try-drill-nav a {
+  min-width: 0;
+}
+.workspace .ops-table,
+.workspace .table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+@media (max-width: 1100px) {
+  .workspace .admin-shell {
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 18px;
+  }
+  .workspace .try-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace .try-sessions {
+    position: static;
+  }
+  .workspace .try-session-links {
+    grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  }
+}
+@media (max-width: 850px) {
+  .workspace .admin-shell,
+  .workspace .ops-dash {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace .admin-shell .side {
+    position: static;
+    top: auto;
+  }
+  .workspace .admin-content .apphead {
+    align-items: flex-start;
+  }
+  .workspace .admin-content .apphead > .btn {
+    align-self: flex-start;
+  }
+}
+@media (max-width: 600px) {
+  .workspace .card {
+    padding: 18px;
+  }
+  .workspace .try-hero,
+  .workspace .site-settings-overview {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .workspace .try-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .workspace .try-phase-rail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace .try-phase-arrow {
+    display: none;
+  }
+  .workspace .try-phase {
+    padding: 12px;
+  }
+  .workspace .try-phase small {
+    display: block;
+  }
+  .workspace .try-form-grid,
+  .workspace .try-status-form,
+  .workspace .try-attempt-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace .try-status-form > div:first-child,
+  .workspace .try-status-form > button {
+    grid-column: auto;
+  }
+  .workspace .try-status-form > button {
+    justify-self: stretch;
+  }
+  .workspace .try-best {
+    text-align: left;
+  }
+  .workspace .try-group-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace .try-group-nav a {
+    justify-content: space-between;
+    min-width: 0;
+  }
+}
